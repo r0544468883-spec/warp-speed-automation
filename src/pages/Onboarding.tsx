@@ -8,18 +8,21 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import OnboardingProgress from "@/components/onboarding/OnboardingProgress";
 import WelcomeStep from "@/components/onboarding/WelcomeStep";
+import AvatarStep from "@/components/onboarding/AvatarStep";
 import IndustryStep from "@/components/onboarding/IndustryStep";
 import ToolsStep from "@/components/onboarding/ToolsStep";
 import FeaturesTourStep from "@/components/onboarding/FeaturesTourStep";
 import ExtensionStep from "@/components/onboarding/ExtensionStep";
 import CompleteStep from "@/components/onboarding/CompleteStep";
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
 
 export default function Onboarding() {
   const [step, setStep] = useState(1);
+  const [transitioning, setTransitioning] = useState(false);
   const [nickname, setNickname] = useState("");
   const [bio, setBio] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [industry, setIndustry] = useState("");
   const [tools, setTools] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -31,11 +34,21 @@ export default function Onboarding() {
       setNickname(profile.display_name || "");
       setIndustry(profile.industry_type || "");
       setTools(profile.tool_stack || []);
+      setAvatarUrl((profile as any).avatar_url || "");
     }
   }, [profile]);
 
-  const next = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS));
-  const back = () => setStep((s) => Math.max(s - 1, 1));
+  const triggerTransition = (target: number) => {
+    if (transitioning) return;
+    setTransitioning(true);
+    setTimeout(() => {
+      setStep(target);
+      setTimeout(() => setTransitioning(false), 50);
+    }, 350);
+  };
+
+  const next = () => triggerTransition(Math.min(step + 1, TOTAL_STEPS));
+  const back = () => triggerTransition(Math.max(step - 1, 1));
 
   const finish = async () => {
     if (!user) return;
@@ -46,6 +59,7 @@ export default function Onboarding() {
         .update({
           nickname: nickname || null,
           bio: bio || null,
+          avatar_url: avatarUrl || null,
           industry_type: industry || null,
           tool_stack: tools,
           onboarding_completed: true,
@@ -64,13 +78,50 @@ export default function Onboarding() {
   };
 
   const canProceed = () => {
-    if (step === 2) return !!industry;
-    if (step === 3) return tools.length > 0;
+    if (step === 3) return !!industry;
+    if (step === 4) return tools.length > 0;
     return true;
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4" dir="rtl">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden" dir="rtl">
+      {/* Step transition warp speed overlay */}
+      <AnimatePresence>
+        {transitioning && (
+          <motion.div
+            className="fixed inset-0 z-50 pointer-events-none overflow-hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="absolute inset-0"
+              animate={{ opacity: [0, 0.5, 0] }}
+              transition={{ duration: 0.4 }}
+              style={{
+                background:
+                  "radial-gradient(circle at center, hsl(var(--primary) / 0.15), hsl(var(--secondary) / 0.08), transparent 70%)",
+              }}
+            />
+            {Array.from({ length: 22 }).map((_, i) => (
+              <motion.div
+                key={i}
+                className="absolute h-px"
+                style={{
+                  top: `${(i * 4.5) % 100}%`,
+                  right: "-10%",
+                  width: `${25 + (i * 11) % 50}%`,
+                  background: `linear-gradient(to left, transparent, hsl(var(--${i % 2 ? "secondary" : "primary"}) / 0.7), transparent)`,
+                }}
+                initial={{ x: "100%", opacity: 0 }}
+                animate={{ x: "-200%", opacity: [0, 1, 0] }}
+                transition={{ duration: 0.5, delay: (i * 0.02) % 0.2, ease: "easeOut" }}
+              />
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="w-full max-w-3xl">
         <div className="flex items-center justify-center gap-2 mb-6">
           <Zap className="h-5 w-5 text-primary" />
@@ -84,10 +135,10 @@ export default function Onboarding() {
             <AnimatePresence mode="wait">
               <motion.div
                 key={step}
-                initial={{ opacity: 0, x: 30 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -30 }}
-                transition={{ duration: 0.3 }}
+                initial={{ opacity: 0, x: 30, filter: "blur(8px)" }}
+                animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, x: -30, filter: "blur(8px)" }}
+                transition={{ duration: 0.35 }}
               >
                 {step === 1 && (
                   <WelcomeStep
@@ -96,11 +147,12 @@ export default function Onboarding() {
                     onChange={(d) => { setNickname(d.nickname); setBio(d.bio); }}
                   />
                 )}
-                {step === 2 && <IndustryStep value={industry} onChange={setIndustry} />}
-                {step === 3 && <ToolsStep value={tools} onChange={setTools} />}
-                {step === 4 && <FeaturesTourStep />}
-                {step === 5 && <ExtensionStep />}
-                {step === 6 && <CompleteStep />}
+                {step === 2 && <AvatarStep avatarUrl={avatarUrl} onChange={setAvatarUrl} />}
+                {step === 3 && <IndustryStep value={industry} onChange={setIndustry} />}
+                {step === 4 && <ToolsStep value={tools} onChange={setTools} />}
+                {step === 5 && <FeaturesTourStep />}
+                {step === 6 && <ExtensionStep />}
+                {step === 7 && <CompleteStep />}
               </motion.div>
             </AnimatePresence>
           </div>
