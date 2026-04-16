@@ -1,81 +1,96 @@
 
 
-# 24.7 AUTOMATION — Implementation Plan
+# Implementation Plan: Auth + Onboarding + AI + Seed Data
 
-## Vision
-Chrome Extension + Dashboard that monitors browser activity, detects repetitive patterns, and recommends automations using AI — backed by a massive "Wikipedia of Automation" knowledge base.
+## Overview
+Four major additions: (1) Authentication with email/password + Google, (2) Onboarding flow, (3) AI-powered pattern analysis via Lovable AI edge function, (4) Seed data for the Automation Wiki.
 
-## Design System
-- **Primary**: #00F0FF (Electric Cyan)
-- **Secondary**: #7000FF (Deep Purple)  
-- **Background**: #020617 (Deep Space Black)
-- **"Warp Speed" effect**: Radial blur animation on automation detection
-- **Dark theme throughout**, neon accents, speed-oriented UI
+---
 
-## Phase 1: Foundation & Dashboard
+## 1. Authentication System
 
-### 1. Database Schema (Supabase)
-- `profiles` — user info, subscription tier, industry, total saved time
-- `captured_events` — app name, action type, timestamps, user_id
-- `automation_wiki` — tool name, use case, source URL, category
-- `benchmarks` — company name, architecture JSON, department
-- `smart_audits` — video URL, AI analysis JSON, ROI projection
-- `user_roles` — role-based access control
+### Auth Pages
+- Create `src/pages/Auth.tsx` — login/signup form with email+password, toggle between modes, Google sign-in button using `lovable.auth.signInWithOAuth("google")`
+- Configure Social Auth tool to generate the lovable module for Google OAuth
+- Style: dark theme matching existing design, centered card with the 24.7 branding
 
-### 2. Auth & Onboarding
-- Email/password + Google sign-in
-- Onboarding flow: industry selection → tool stack picker (20+ platforms) → "See what companies like OpenAI & HubSpot automate" inspiration screen
-- "Warp Speed" animation during onboarding transitions
+### Auth Context & Route Protection
+- Create `src/contexts/AuthContext.tsx` — wraps `supabase.auth.onAuthStateChange`, provides `user`, `session`, `loading`, `signOut`
+- Create `src/components/ProtectedRoute.tsx` — redirects to `/auth` if not authenticated
+- Wrap all dashboard routes in `ProtectedRoute`
+- Add `/auth` route to App.tsx
 
-### 3. Dashboard Pages
-- **Home**: Activity overview, automation suggestions, "Speedometer" widget showing detected patterns
-- **Automation Wiki**: Searchable knowledge base with filters by tool, source, category
-- **Smart Audit**: Upload screen recording → AI analyzes → outputs JSON blueprint for n8n/Make
-- **ROI Calculator**: Visual savings tracker with formula: SavedTime = (Frequency × TaskDuration) - MaintenanceCost
-- **Settings**: Connected tools, notification preferences, subscription management
+### Profile Integration
+- The `handle_new_user` trigger already creates profiles on signup
+- Fetch profile data in AuthContext for display name, onboarding status
 
-## Phase 2: Chrome Extension
+---
 
-### 4. Manifest V3 Extension
-- Content scripts monitoring activity on whitelisted URLs (Priority, Monday, Gmail, Claude, Fireberry, Airtable, etc.)
-- Event fingerprinting: detect repetitive copy/paste, navigation, and data entry patterns
-- Subtle overlay "Speedometer" that fills as repetitive tasks are detected
-- "Warp Speed" animation trigger on high-confidence detection
-- Popup with latest suggestions + "Push to n8n/Make/Zapier" buttons
-- Manual mode: describe a difficulty, get AI recommendations
+## 2. Onboarding Flow
 
-### 5. Platform Detection (MVP: 5 core)
-- Gmail, Monday, Priority, Claude, Fireberry
-- Expandable to 20+ (Kaveret, Sensei, Airtable, ClickUp, Jira, HubSpot, Salesforce, etc.)
+- Create `src/pages/Onboarding.tsx` — multi-step wizard with Warp Speed transitions:
+  - **Step 1**: Industry selection (tech, finance, marketing, sales, operations, etc.)
+  - **Step 2**: Tool stack picker — grid of 20+ platform icons (Gmail, Monday, Priority, Claude, Fireberry, Airtable, ClickUp, Jira, etc.) with multi-select
+  - **Step 3**: Inspiration screen — "See what companies like OpenAI & HubSpot automate" with benchmark previews
+- On completion: update `profiles` table with `industry_type`, `tool_stack`, `onboarding_completed = true`
+- Redirect logic: if `onboarding_completed === false`, redirect to `/onboarding` after login
 
-## Phase 3: AI & Knowledge Engine
+---
 
-### 6. AI Edge Functions
-- Pattern analysis using Lovable AI (Gemini)
-- Semantic search across automation wiki
-- Smart Audit video analysis → structured JSON output
-- Reference validation: cross-check suggestions against forum sources, append proof links
+## 3. AI-Powered Dashboard (Lovable AI)
 
-### 7. Automation Wiki Data
-- Seed data from n8n, Zapier, Make, Reddit communities
-- Categories for Israeli platforms (Priority, Kaveret, Sensei, Fireberry, Koala, etc.)
-- AI tool integrations database (Claude, GPT, Gemini, Perplexity, OpenClaw, Kolbo.AI)
-- Company benchmark data (OpenAI, HubSpot, Salesforce, Monday workflows)
+### Edge Function: `analyze-patterns`
+- Accepts user's captured events or manual difficulty description
+- Uses Lovable AI Gateway (`google/gemini-3-flash-preview`) to:
+  - Analyze repetitive patterns
+  - Generate automation recommendations with tool pairs
+  - Suggest platform (n8n/Make/Zapier)
+- Returns structured suggestions via tool calling
 
-## Phase 4: Integrations & Payments
+### Dashboard Integration
+- Replace mock suggestions on Index page with real AI-generated ones
+- Add "Manual Mode" input on dashboard — user describes a difficulty, AI responds with recommendations
+- Loading states with the existing Warp Speed animation
 
-### 8. Webhook Hub
-- "Push to n8n" / "Push to Make" / "Push to Zapier" buttons on every recommendation
-- Structured payload output matching each platform's webhook format
+---
 
-### 9. Payments (Stripe)
-- **Free**: Basic activity tracking, limited suggestions
-- **Pro**: Smart Audit, full Wiki access, benchmark data, unlimited suggestions
+## 4. Seed Data for Automation Wiki
 
-## Key UI Components
-- **Automation Cards**: "Tool A ➔ Tool B" with proof badges and source links
-- **Speedometer Widget**: Real-time pattern detection indicator
-- **Warp Speed Overlay**: Framer Motion radial blur animation
-- **Smart Audit Dropzone**: Drag & drop video upload with neon pulse processing indicator
-- **ROI Dashboard**: Visual charts showing time/money saved
+### Insert ~30 real entries into `automation_wiki` table
+- **n8n**: Gmail→Monday sync, Claude→Priority reports, LinkedIn lead enrichment, Slack notifications, webhook chains
+- **Make**: Fireberry→Priority invoicing, Airtable→Salesforce sync, HubSpot lead routing
+- **Zapier**: ClickUp deadline alerts, Google Analytics reports, Notion→Slack updates
+- **Israeli platforms**: Priority, Kaveret, Sensei, Fireberry, Koala integrations
+- **AI tools**: Claude, GPT, Perplexity, Gemini agent workflows
+- Each entry includes source URLs (Reddit, n8n community, X), proof counts, tags, categories
+
+### Wiki Page Update
+- Fetch data from `automation_wiki` table instead of mock data
+- Real-time search across DB entries
+
+---
+
+## Technical Details
+
+### Files to Create
+- `src/pages/Auth.tsx`
+- `src/pages/Onboarding.tsx`
+- `src/contexts/AuthContext.tsx`
+- `src/components/ProtectedRoute.tsx`
+- `supabase/functions/analyze-patterns/index.ts`
+
+### Files to Modify
+- `src/App.tsx` — add AuthProvider, routes, ProtectedRoute
+- `src/pages/Index.tsx` — integrate AI suggestions, manual mode
+- `src/pages/Wiki.tsx` — fetch from DB instead of mock
+- `src/components/DashboardLayout.tsx` — add user info + logout button
+
+### Database Changes
+- None needed (schema already exists)
+- Insert seed data into `automation_wiki` table
+
+### Tools/Config
+- Configure Social Auth for Google OAuth
+- Deploy `analyze-patterns` edge function
+- `LOVABLE_API_KEY` already available
 
