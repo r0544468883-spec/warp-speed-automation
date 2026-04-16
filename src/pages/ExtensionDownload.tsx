@@ -96,7 +96,7 @@ export default function ExtensionDownload() {
               <div key={b.name} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border">
                 <b.icon className="h-5 w-5 text-primary" />
                 <span className="text-sm font-medium">{b.name}</span>
-                <CheckCircle className="h-4 w-4 text-green-500 mr-auto" />
+                <CheckCircle className="h-4 w-4 text-primary mr-auto" />
               </div>
             ))}
           </div>
