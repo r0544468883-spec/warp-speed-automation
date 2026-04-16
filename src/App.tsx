@@ -3,6 +3,10 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/contexts/AuthContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import Auth from "./pages/Auth";
+import Onboarding from "./pages/Onboarding";
 import Index from "./pages/Index";
 import Wiki from "./pages/Wiki";
 import SmartAudit from "./pages/SmartAudit";
@@ -18,14 +22,18 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/wiki" element={<Wiki />} />
-          <Route path="/smart-audit" element={<SmartAudit />} />
-          <Route path="/roi" element={<ROI />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+            <Route path="/wiki" element={<ProtectedRoute><Wiki /></ProtectedRoute>} />
+            <Route path="/smart-audit" element={<ProtectedRoute><SmartAudit /></ProtectedRoute>} />
+            <Route path="/roi" element={<ProtectedRoute><ROI /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
