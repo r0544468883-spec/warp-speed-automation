@@ -1,7 +1,15 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeftRight, ExternalLink, ThumbsUp, Zap } from "lucide-react";
+import { ArrowLeftRight, ExternalLink, ThumbsUp, Zap, Send, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 interface AutomationCardProps {
   toolFrom: string;
@@ -11,6 +19,7 @@ interface AutomationCardProps {
   proofCount: number;
   sourceUrl?: string;
   platform?: "n8n" | "make" | "zapier";
+  estimatedTimeSaved?: string;
 }
 
 const platformColors = {
@@ -19,9 +28,49 @@ const platformColors = {
   zapier: "bg-amber-500/20 text-amber-400",
 };
 
+const platformConfigs = {
+  n8n: { label: "n8n", color: "text-orange-400", bgColor: "hover:bg-orange-500/10" },
+  make: { label: "Make", color: "text-purple-400", bgColor: "hover:bg-purple-500/10" },
+  zapier: { label: "Zapier", color: "text-amber-400", bgColor: "hover:bg-amber-500/10" },
+};
+
+function buildPayload(toolFrom: string, toolTo: string, description: string, category: string) {
+  return {
+    automation: { trigger: toolFrom, action: toolTo, description, category },
+    timestamp: new Date().toISOString(),
+    source: "24.7 Automation",
+  };
+}
+
 export default function AutomationCard({
-  toolFrom, toolTo, description, category, proofCount, sourceUrl, platform = "n8n",
+  toolFrom, toolTo, description, category, proofCount, sourceUrl, platform = "n8n", estimatedTimeSaved,
 }: AutomationCardProps) {
+  const [sentTo, setSentTo] = useState<string | null>(null);
+
+  const handlePushToPlatform = (targetPlatform: string) => {
+    const payload = buildPayload(toolFrom, toolTo, description, category);
+    
+    // Copy payload to clipboard for webhook use
+    navigator.clipboard.writeText(JSON.stringify(payload, null, 2)).then(() => {
+      setSentTo(targetPlatform);
+      toast.success(`הנתונים הועתקו! הדבק ב-${targetPlatform} Webhook`, {
+        description: `${toolFrom} → ${toolTo}`,
+        action: {
+          label: "פתח " + targetPlatform,
+          onClick: () => {
+            const urls: Record<string, string> = {
+              n8n: "https://n8n.io",
+              Make: "https://make.com",
+              Zapier: "https://zapier.com",
+            };
+            window.open(urls[targetPlatform], "_blank");
+          },
+        },
+      });
+      setTimeout(() => setSentTo(null), 3000);
+    });
+  };
+
   return (
     <motion.div
       whileHover={{ y: -2, scale: 1.01 }}
@@ -50,6 +99,9 @@ export default function AutomationCard({
               <span>{proofCount} תימוכין</span>
             </div>
           )}
+          {estimatedTimeSaved && (
+            <span className="text-xs text-muted-foreground">⏱ {estimatedTimeSaved}</span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {sourceUrl && (
@@ -59,9 +111,38 @@ export default function AutomationCard({
               </a>
             </Button>
           )}
-          <Button size="sm" className="h-7 text-xs gap-1 bg-primary/10 text-primary hover:bg-primary/20">
-            <Zap className="h-3 w-3" /> הפעל
-          </Button>
+          
+          {/* Push to Platform dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                size="sm" 
+                className="h-7 text-xs gap-1 bg-primary/10 text-primary hover:bg-primary/20"
+              >
+                {sentTo ? (
+                  <>
+                    <Check className="h-3 w-3" /> נשלח!
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-3 w-3" /> שלח לפלטפורמה
+                  </>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[160px]">
+              {Object.entries(platformConfigs).map(([key, config]) => (
+                <DropdownMenuItem
+                  key={key}
+                  onClick={() => handlePushToPlatform(config.label)}
+                  className={`gap-2 cursor-pointer ${config.bgColor}`}
+                >
+                  <Zap className={`h-3.5 w-3.5 ${config.color}`} />
+                  <span>שלח ל-{config.label}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </motion.div>
