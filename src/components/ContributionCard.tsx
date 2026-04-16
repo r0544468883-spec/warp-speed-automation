@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Heart, ExternalLink, Trash2, Workflow, User, Linkedin, FileText, MessageSquare, Sparkles } from "lucide-react";
+import { Heart, ExternalLink, Trash2, Workflow, User, Linkedin as LinkedinIcon, FileText, MessageSquare, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
