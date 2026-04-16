@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_recommendations_cache: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          payload: Json
+          stack_hash: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          payload: Json
+          stack_hash: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          payload?: Json
+          stack_hash?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       automation_send_log: {
         Row: {
           automation_name: string
@@ -200,6 +227,47 @@ export type Database = {
         }
         Relationships: []
       }
+      contribution_attachments: {
+        Row: {
+          contribution_id: string
+          created_at: string
+          file_name: string
+          file_url: string
+          id: string
+          mime_type: string | null
+          size_bytes: number | null
+          user_id: string
+        }
+        Insert: {
+          contribution_id: string
+          created_at?: string
+          file_name: string
+          file_url: string
+          id?: string
+          mime_type?: string | null
+          size_bytes?: number | null
+          user_id: string
+        }
+        Update: {
+          contribution_id?: string
+          created_at?: string
+          file_name?: string
+          file_url?: string
+          id?: string
+          mime_type?: string | null
+          size_bytes?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contribution_attachments_contribution_id_fkey"
+            columns: ["contribution_id"]
+            isOneToOne: false
+            referencedRelation: "community_contributions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contribution_votes: {
         Row: {
           contribution_id: string
@@ -232,42 +300,60 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bio: string | null
           created_at: string
           display_name: string | null
+          github_url: string | null
           id: string
           industry_type: string | null
+          linkedin_url: string | null
+          linktree_url: string | null
+          nickname: string | null
           onboarding_completed: boolean
           subscription_tier: Database["public"]["Enums"]["subscription_tier"]
           tool_stack: string[] | null
           total_saved_time: number
           updated_at: string
           user_id: string
+          website_url: string | null
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           display_name?: string | null
+          github_url?: string | null
           id?: string
           industry_type?: string | null
+          linkedin_url?: string | null
+          linktree_url?: string | null
+          nickname?: string | null
           onboarding_completed?: boolean
           subscription_tier?: Database["public"]["Enums"]["subscription_tier"]
           tool_stack?: string[] | null
           total_saved_time?: number
           updated_at?: string
           user_id: string
+          website_url?: string | null
         }
         Update: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           display_name?: string | null
+          github_url?: string | null
           id?: string
           industry_type?: string | null
+          linkedin_url?: string | null
+          linktree_url?: string | null
+          nickname?: string | null
           onboarding_completed?: boolean
           subscription_tier?: Database["public"]["Enums"]["subscription_tier"]
           tool_stack?: string[] | null
           total_saved_time?: number
           updated_at?: string
           user_id?: string
+          website_url?: string | null
         }
         Relationships: []
       }
