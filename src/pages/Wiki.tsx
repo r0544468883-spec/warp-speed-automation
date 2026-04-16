@@ -1,102 +1,325 @@
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Search, BookOpen, ThumbsUp, ExternalLink, Copy, ChevronDown, Filter } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { motion } from "framer-motion";
+import { Search, Sparkles, RefreshCw, Bookmark, BookmarkCheck, ExternalLink, Settings, Loader2, Wrench } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import DashboardLayout from "@/components/DashboardLayout";
 import SendToPlatformButton from "@/components/SendToPlatformButton";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
-const platformFilters = ["הכל", "n8n", "Make", "Zapier"];
+interface Recommendation {
+  id?: string; // present when from saved_articles
+  title: string;
+  url: string;
+  source?: string;
+  snippet: string;
+  platform: string;
+  tools_used: string[];
+  trigger?: string;
+  action?: string;
+  category?: string;
+  automation_json?: any;
+}
 
 const platformColors: Record<string, string> = {
   n8n: "bg-orange-500/20 text-orange-400 border-orange-500/30",
   Make: "bg-purple-500/20 text-purple-400 border-purple-500/30",
   Zapier: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  Other: "bg-muted text-muted-foreground border-border",
 };
 
 const platformIcons: Record<string, string> = {
-  n8n: "⚡", Make: "🔧", Zapier: "⚡",
+  n8n: "⚡", Make: "🔧", Zapier: "⚡", Other: "📱",
 };
 
-interface WikiEntry {
-  id: string;
-  tool_name: string;
-  use_case: string;
-  description: string | null;
-  category: string | null;
-  source_type: string | null;
-  source_url: string | null;
-  proof_count: number;
-  tags: string[] | null;
-  automation_json: any;
-}
-
 export default function Wiki() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [activePlatform, setActivePlatform] = useState("הכל");
-  const [activeCategory, setActiveCategory] = useState("הכל");
-  const [entries, setEntries] = useState<WikiEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [categories, setCategories] = useState<string[]>(["הכל"]);
+  const [toolStack, setToolStack] = useState<string[]>([]);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [savedArticles, setSavedArticles] = useState<Recommendation[]>([]);
+  const [savedUrls, setSavedUrls] = useState<Set<string>>(new Set());
+  const [feedLoading, setFeedLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("recommendations");
 
+  // Load profile + saved articles
   useEffect(() => {
-    const fetchEntries = async () => {
-      const { data, error } = await supabase
-        .from("automation_wiki")
-        .select("id, tool_name, use_case, description, category, source_type, source_url, proof_count, tags, automation_json")
-        .order("proof_count", { ascending: false });
-      if (!error && data) {
-        setEntries(data);
-        // Extract unique categories
-        const cats = [...new Set(data.map(e => e.category).filter(Boolean))] as string[];
-        setCategories(["הכל", ...cats.sort()]);
+    if (!user) return;
+    (async () => {
+      const [{ data: profile }, { data: saved }] = await Promise.all([
+        supabase.from("profiles").select("tool_stack").eq("user_id", user.id).maybeSingle(),
+        supabase.from("saved_articles").select("*").eq("user_id", user.id).order("saved_at", { ascending: false }),
+      ]);
+      const stack = (profile?.tool_stack || []) as string[];
+      setToolStack(stack);
+      setProfileLoading(false);
+
+      if (saved) {
+        const mapped: Recommendation[] = saved.map((s: any) => ({
+          id: s.id,
+          title: s.title,
+          url: s.url,
+          source: s.source,
+          snippet: s.snippet || "",
+          platform: s.platform || "Other",
+          tools_used: s.tools_matched || [],
+          automation_json: s.automation_json,
+        }));
+        setSavedArticles(mapped);
+        setSavedUrls(new Set(mapped.map((m) => m.url)));
       }
-      setLoading(false);
-    };
-    fetchEntries();
-  }, []);
+    })();
+  }, [user]);
 
-  const filtered = entries.filter((e) => {
+  const fetchRecommendations = useCallback(async () => {
+    if (toolStack.length === 0) return;
+    setFeedLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("discover-automations", {
+        body: { tool_stack: toolStack },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setRecommendations(data?.recommendations || []);
+      if ((data?.recommendations || []).length === 0) {
+        toast.info("לא נמצאו המלצות חדשות. נסה לרענן בעוד רגע.");
+      }
+    } catch (e: any) {
+      console.error(e);
+      const msg = e?.message || "שגיאה בטעינת המלצות";
+      if (msg.includes("429")) toast.error("חרגת ממגבלת הבקשות, נסה שוב בעוד דקה");
+      else if (msg.includes("402")) toast.error("נדרש תשלום — הוסף קרדיטים ל-Lovable AI");
+      else toast.error(msg);
+    } finally {
+      setFeedLoading(false);
+    }
+  }, [toolStack]);
+
+  // Auto-fetch once when tool stack arrives
+  useEffect(() => {
+    if (toolStack.length > 0 && recommendations.length === 0 && !feedLoading) {
+      fetchRecommendations();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toolStack]);
+
+  const toggleSave = async (rec: Recommendation) => {
+    if (!user) return;
+    const isSaved = savedUrls.has(rec.url);
+
+    if (isSaved) {
+      // Find saved row
+      const savedRow = savedArticles.find((s) => s.url === rec.url);
+      if (savedRow?.id) {
+        const { error } = await supabase.from("saved_articles").delete().eq("id", savedRow.id);
+        if (error) {
+          toast.error("שגיאה במחיקה");
+          return;
+        }
+      }
+      setSavedArticles((prev) => prev.filter((s) => s.url !== rec.url));
+      setSavedUrls((prev) => {
+        const next = new Set(prev);
+        next.delete(rec.url);
+        return next;
+      });
+      toast.success("המאמר הוסר מהשמורים");
+    } else {
+      const { data, error } = await supabase
+        .from("saved_articles")
+        .insert({
+          user_id: user.id,
+          title: rec.title,
+          url: rec.url,
+          snippet: rec.snippet,
+          source: rec.source,
+          platform: rec.platform,
+          tools_matched: rec.tools_used,
+          automation_json: rec.automation_json,
+        })
+        .select()
+        .single();
+      if (error || !data) {
+        toast.error("שגיאה בשמירה");
+        return;
+      }
+      const newSaved: Recommendation = { ...rec, id: data.id };
+      setSavedArticles((prev) => [newSaved, ...prev]);
+      setSavedUrls((prev) => new Set(prev).add(rec.url));
+      toast.success("נשמר! ניתן למצוא בטאב 'שמורים'");
+    }
+  };
+
+  const filterBySearch = (list: Recommendation[]) => {
+    if (!search.trim()) return list;
     const s = search.toLowerCase();
-    const matchSearch = !search ||
-      e.use_case.toLowerCase().includes(s) ||
-      e.tool_name.toLowerCase().includes(s) ||
-      e.description?.toLowerCase().includes(s) ||
-      e.tags?.some(t => t.toLowerCase().includes(s));
-    const matchPlatform = activePlatform === "הכל" || e.tool_name === activePlatform;
-    const matchCat = activeCategory === "הכל" || e.category === activeCategory;
-    return matchSearch && matchPlatform && matchCat;
-  });
+    return list.filter(
+      (r) =>
+        r.title.toLowerCase().includes(s) ||
+        r.snippet?.toLowerCase().includes(s) ||
+        r.tools_used?.some((t) => t.toLowerCase().includes(s)) ||
+        r.platform.toLowerCase().includes(s)
+    );
+  };
 
-  const copyJson = (entry: WikiEntry) => {
-    const payload = JSON.stringify({
-      platform: entry.tool_name,
-      use_case: entry.use_case,
-      description: entry.description,
-      automation: entry.automation_json,
-      source: entry.source_url,
-    }, null, 2);
-    navigator.clipboard.writeText(payload);
-    toast.success("הועתק ללוח!");
+  const filteredRecs = filterBySearch(recommendations);
+  const filteredSaved = filterBySearch(savedArticles);
+
+  // Empty stack state
+  if (!profileLoading && toolStack.length === 0) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-2xl mx-auto py-12 text-center space-y-6">
+          <div className="inline-flex p-4 rounded-full bg-primary/10">
+            <Wrench className="h-10 w-10 text-primary" />
+          </div>
+          <h1 className="text-2xl md:text-3xl font-heading font-bold text-gradient">
+            פיד אוטומציות מותאם אישית
+          </h1>
+          <p className="text-muted-foreground">
+            כדי שנוכל למצוא לך המלצות אוטומציה רלוונטיות מהרשת, צריך לדעת אילו כלים אתה משתמש בהם (WhatsApp, Monday, Gmail וכו').
+          </p>
+          <Button onClick={() => navigate("/settings")} className="gap-2">
+            <Settings className="h-4 w-4" />
+            עדכן את הכלים שלי בהגדרות
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const renderCard = (rec: Recommendation, i: number) => {
+    const isSaved = savedUrls.has(rec.url);
+    const colorClass = platformColors[rec.platform] || platformColors.Other;
+    const icon = platformIcons[rec.platform] || platformIcons.Other;
+
+    return (
+      <motion.div
+        key={`${rec.url}-${i}`}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: Math.min(i * 0.03, 0.3) }}
+      >
+        <Card className="bg-card/50 backdrop-blur-sm border-border p-5 h-full flex flex-col hover:border-primary/30 transition-all">
+          <div className="flex items-start justify-between mb-2 gap-2">
+            <Badge variant="outline" className={`text-[10px] border ${colorClass}`}>
+              {icon} {rec.platform}
+            </Badge>
+            <button
+              onClick={() => toggleSave(rec)}
+              className="text-muted-foreground hover:text-primary transition-colors"
+              title={isSaved ? "הסר משמורים" : "שמור"}
+            >
+              {isSaved ? (
+                <BookmarkCheck className="h-4 w-4 fill-primary text-primary" />
+              ) : (
+                <Bookmark className="h-4 w-4" />
+              )}
+            </button>
+          </div>
+
+          <h3 className="text-sm font-semibold mb-2 line-clamp-2">{rec.title}</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed mb-3 line-clamp-3 flex-1">
+            {rec.snippet}
+          </p>
+
+          {rec.tools_used && rec.tools_used.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-3">
+              {rec.tools_used.slice(0, 4).map((tool) => (
+                <span
+                  key={tool}
+                  className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded"
+                >
+                  {tool}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {(rec.trigger || rec.action) && (
+            <div className="text-[10px] text-muted-foreground mb-3 flex items-center gap-1.5">
+              {rec.trigger && <span className="bg-background/60 px-1.5 py-0.5 rounded">{rec.trigger}</span>}
+              {rec.trigger && rec.action && <span>→</span>}
+              {rec.action && <span className="bg-background/60 px-1.5 py-0.5 rounded">{rec.action}</span>}
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-2 border-t border-border mt-auto flex-wrap">
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs gap-1.5 h-7"
+              onClick={() => window.open(rec.url, "_blank")}
+            >
+              <ExternalLink className="h-3 w-3" /> צפה במקור
+            </Button>
+            <SendToPlatformButton
+              automation={{
+                name: rec.title,
+                trigger: rec.trigger,
+                action: rec.action,
+                description: rec.snippet,
+                category: rec.category,
+                automation_json: rec.automation_json || {
+                  trigger: rec.trigger,
+                  action: rec.action,
+                  tools: rec.tools_used,
+                },
+                source_url: rec.url,
+              }}
+            />
+          </div>
+        </Card>
+      </motion.div>
+    );
   };
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl md:text-3xl font-heading font-bold text-gradient mb-1 flex items-center gap-3">
-            <BookOpen className="h-8 w-8 text-primary" /> ויקיפדיה של האוטומציה
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            {entries.length} אוטומציות מגובות בתימוכין מקהילות עולמיות — n8n, Make, Zapier ופלטפורמות ישראליות
-          </p>
+        <div className="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-heading font-bold text-gradient mb-1 flex items-center gap-3">
+              <Sparkles className="h-7 w-7 text-primary" /> פיד אוטומציות מותאם אישית
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              המלצות חיות מהרשת על בסיס הכלים שלך
+            </p>
+          </div>
+          <Button
+            onClick={fetchRecommendations}
+            disabled={feedLoading || toolStack.length === 0}
+            variant="outline"
+            className="gap-2"
+          >
+            {feedLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            רענן המלצות
+          </Button>
         </div>
+
+        {/* Tool stack chip */}
+        {toolStack.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap text-sm">
+            <span className="text-muted-foreground text-xs">הכלים שלך:</span>
+            {toolStack.map((t) => (
+              <Badge key={t} variant="outline" className="bg-primary/5 text-primary border-primary/30">
+                {t}
+              </Badge>
+            ))}
+            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={() => navigate("/settings")}>
+              <Settings className="h-3 w-3" /> ערוך
+            </Button>
+          </div>
+        )}
 
         {/* Search */}
         <div className="relative">
@@ -104,218 +327,63 @@ export default function Wiki() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="חפש כלי, שימוש, תג או תיאור..."
+            placeholder="חפש בהמלצות..."
             className="pr-10 bg-card/50 border-border"
           />
         </div>
 
-        {/* Platform Filters */}
-        <div className="flex gap-2 items-center">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          {platformFilters.map((p) => (
-            <Button
-              key={p}
-              variant={activePlatform === p ? "default" : "outline"}
-              size="sm"
-              onClick={() => setActivePlatform(p)}
-              className={activePlatform === p
-                ? "bg-primary text-primary-foreground"
-                : "border-border text-muted-foreground hover:text-foreground"
-              }
-            >
-              {p !== "הכל" && <span className="ml-1">{platformIcons[p]}</span>}
-              {p}
-            </Button>
-          ))}
-        </div>
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="bg-card/50 border border-border">
+            <TabsTrigger value="recommendations" className="gap-2">
+              <Sparkles className="h-3.5 w-3.5" />
+              המלצות לי ({recommendations.length})
+            </TabsTrigger>
+            <TabsTrigger value="saved" className="gap-2">
+              <BookmarkCheck className="h-3.5 w-3.5" />
+              שמורים ({savedArticles.length})
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Category Chips */}
-        <div className="flex gap-2 flex-wrap">
-          {categories.map((cat) => (
-            <Badge
-              key={cat}
-              variant={activeCategory === cat ? "default" : "outline"}
-              className={`cursor-pointer transition-all ${
-                activeCategory === cat
-                  ? "bg-primary/20 text-primary border-primary/40"
-                  : "hover:border-primary/30"
-              }`}
-              onClick={() => setActiveCategory(cat)}
-            >
-              {cat}
-            </Badge>
-          ))}
-        </div>
-
-        {/* Results count */}
-        <p className="text-xs text-muted-foreground">
-          מציג {filtered.length} מתוך {entries.length} אוטומציות
-        </p>
-
-        {/* Cards Grid */}
-        {loading ? (
-          <div className="grid md:grid-cols-2 gap-4">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-card/50 border border-border rounded-xl p-5 animate-pulse">
-                <div className="h-4 bg-muted rounded w-1/4 mb-3" />
-                <div className="h-4 bg-muted rounded w-3/4 mb-2" />
-                <div className="h-3 bg-muted rounded w-1/2" />
+          <TabsContent value="recommendations" className="mt-6">
+            {feedLoading ? (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="bg-card/50 border border-border rounded-xl p-5 animate-pulse h-48">
+                    <div className="h-3 bg-muted rounded w-1/4 mb-3" />
+                    <div className="h-4 bg-muted rounded w-3/4 mb-2" />
+                    <div className="h-3 bg-muted rounded w-full mb-1" />
+                    <div className="h-3 bg-muted rounded w-2/3" />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-2 gap-4">
-            {filtered.map((entry, i) => {
-              const isExpanded = expandedId === entry.id;
-              const colorClass = platformColors[entry.tool_name] || "bg-muted text-muted-foreground";
+            ) : filteredRecs.length === 0 ? (
+              <div className="text-center py-16 text-muted-foreground">
+                <Sparkles className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                <p className="text-lg font-medium">אין המלצות כרגע</p>
+                <p className="text-sm mt-1">לחץ על "רענן המלצות" כדי לקבל הצעות חדשות</p>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredRecs.map(renderCard)}
+              </div>
+            )}
+          </TabsContent>
 
-              return (
-                <motion.div
-                  key={entry.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: Math.min(i * 0.03, 0.3) }}
-                >
-                  <Card
-                    className={`bg-card/50 backdrop-blur-sm border-border p-5 cursor-pointer transition-all hover:border-primary/30 ${
-                      isExpanded ? "border-primary/40 ring-1 ring-primary/20" : ""
-                    }`}
-                    onClick={() => setExpandedId(isExpanded ? null : entry.id)}
-                  >
-                    {/* Top row */}
-                    <div className="flex items-start justify-between mb-2">
-                      <Badge variant="outline" className={`text-[10px] border ${colorClass}`}>
-                        {platformIcons[entry.tool_name] || "📱"} {entry.tool_name}
-                      </Badge>
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-muted text-muted-foreground text-[10px]">{entry.category}</Badge>
-                        <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-                      </div>
-                    </div>
-
-                    {/* Title */}
-                    <p className="text-sm font-medium mb-2">{entry.use_case}</p>
-
-                    {/* Meta row */}
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span>מקור: {entry.source_type}</span>
-                        <div className="flex items-center gap-1">
-                          <ThumbsUp className="h-3 w-3" />
-                          <span>{entry.proof_count}</span>
-                        </div>
-                      </div>
-                      <div className="flex gap-1 flex-wrap justify-end">
-                        {entry.tags?.slice(0, 3).map((tag) => (
-                          <span
-                            key={tag}
-                            className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded cursor-pointer hover:bg-primary/20 transition-colors"
-                            onClick={(e) => { e.stopPropagation(); setSearch(tag); }}
-                          >
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Expanded Content */}
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="pt-3 mt-3 border-t border-border space-y-3">
-                            {/* Description */}
-                            {entry.description && (
-                              <p className="text-xs text-muted-foreground leading-relaxed">
-                                {entry.description}
-                              </p>
-                            )}
-
-                            {/* Automation JSON */}
-                            {entry.automation_json && (
-                              <div className="bg-background/50 rounded-lg p-3 border border-border">
-                                <p className="text-[10px] text-muted-foreground mb-1.5 font-medium">מבנה האוטומציה:</p>
-                                <div className="flex flex-wrap gap-2 text-xs">
-                                  {Object.entries(entry.automation_json as Record<string, any>).map(([key, val]) => (
-                                    <span key={key} className="bg-primary/10 text-primary px-2 py-1 rounded">
-                                      {key}: {String(val)}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* All tags */}
-                            {entry.tags && entry.tags.length > 3 && (
-                              <div className="flex gap-1 flex-wrap">
-                                {entry.tags.map((tag) => (
-                                  <span
-                                    key={tag}
-                                    className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded cursor-pointer hover:bg-primary/20"
-                                    onClick={(e) => { e.stopPropagation(); setSearch(tag); }}
-                                  >
-                                    #{tag}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* Actions */}
-                            <div className="flex gap-2 pt-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
-                              <SendToPlatformButton
-                                automation={{
-                                  name: `${entry.tool_name}: ${entry.use_case}`,
-                                  description: entry.description,
-                                  category: entry.category,
-                                  automation_json: entry.automation_json,
-                                  source_url: entry.source_url,
-                                }}
-                              />
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10 h-7"
-                                onClick={(e) => { e.stopPropagation(); copyJson(entry); }}
-                              >
-                                <Copy className="h-3 w-3" /> העתק JSON
-                              </Button>
-                              {entry.source_url && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-xs gap-1.5 h-7"
-                                  onClick={(e) => { e.stopPropagation(); window.open(entry.source_url!, '_blank'); }}
-                                >
-                                  <ExternalLink className="h-3 w-3" /> צפה במקור
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </Card>
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
-
-        {!loading && filtered.length === 0 && (
-          <div className="text-center py-20 text-muted-foreground">
-            <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-30" />
-            <p className="text-lg font-medium">לא נמצאו תוצאות</p>
-            <p className="text-sm mt-1">נסה לחפש מילה אחרת או לשנות את הפילטרים</p>
-            <Button variant="outline" size="sm" className="mt-4" onClick={() => { setSearch(""); setActivePlatform("הכל"); setActiveCategory("הכל"); }}>
-              נקה פילטרים
-            </Button>
-          </div>
-        )}
+          <TabsContent value="saved" className="mt-6">
+            {filteredSaved.length === 0 ? (
+              <div className="text-center py-16 text-muted-foreground">
+                <Bookmark className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                <p className="text-lg font-medium">אין מאמרים שמורים</p>
+                <p className="text-sm mt-1">לחץ על אייקון הסימנייה בכרטיס כדי לשמור לאחר כך</p>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredSaved.map(renderCard)}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );

@@ -1,12 +1,6 @@
-import { useState, useEffect } from "react";
-import { Send, Check, Loader2, Zap, Eye, Copy } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Send, Check, Loader2, Eye, Copy, RotateCcw, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -54,10 +49,28 @@ export default function SendToPlatformButton({
   const [sending, setSending] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [webhookUrls, setWebhookUrls] = useState<Record<string, string | null>>({});
-  const [defaultPlatform, setDefaultPlatform] = useState<string | null>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [pendingPlatform, setPendingPlatform] = useState<{ key: string; label: string } | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState<string>("n8n");
+  const [jsonText, setJsonText] = useState("");
+  const [jsonError, setJsonError] = useState<string | null>(null);
   const { user } = useAuth();
+
+  const originalPayload = useMemo(
+    () => ({
+      automation: {
+        name: automation.name,
+        trigger: automation.trigger,
+        action: automation.action,
+        description: automation.description,
+        category: automation.category,
+        config: automation.automation_json,
+      },
+      source_url: automation.source_url,
+      timestamp: new Date().toISOString(),
+      source: "24.7 Automation",
+    }),
+    [automation]
+  );
 
   useEffect(() => {
     if (!user) return;
@@ -73,56 +86,64 @@ export default function SendToPlatformButton({
             make: data.make_webhook_url,
             zapier: data.zapier_webhook_url,
           });
-          setDefaultPlatform(data.default_platform);
+          if (data.default_platform && platformConfigs[data.default_platform]) {
+            setSelectedPlatform(data.default_platform);
+          }
         }
       });
   }, [user]);
 
-  const buildPayload = () => ({
-    automation: {
-      name: automation.name,
-      trigger: automation.trigger,
-      action: automation.action,
-      description: automation.description,
-      category: automation.category,
-      config: automation.automation_json,
-    },
-    source_url: automation.source_url,
-    timestamp: new Date().toISOString(),
-    source: "24.7 Automation",
-  });
+  const openDialog = () => {
+    setJsonText(JSON.stringify(originalPayload, null, 2));
+    setJsonError(null);
+    setDialogOpen(true);
+  };
 
-  const logSend = async (label: string, status: string, errorMsg?: string) => {
+  const resetJson = () => {
+    setJsonText(JSON.stringify(originalPayload, null, 2));
+    setJsonError(null);
+    toast.info("ה-JSON אופס לערך המקורי");
+  };
+
+  const validateJson = (): any | null => {
+    try {
+      const parsed = JSON.parse(jsonText);
+      setJsonError(null);
+      return parsed;
+    } catch (e: any) {
+      setJsonError(e.message);
+      toast.error("JSON לא תקין", { description: e.message });
+      return null;
+    }
+  };
+
+  const logSend = async (label: string, status: string, payload: any, errorMsg?: string) => {
     if (!user) return;
     await supabase.from("automation_send_log").insert({
       user_id: user.id,
       platform: label,
       automation_name: automation.name,
-      payload: buildPayload() as any,
+      payload: payload as any,
       status,
       error_message: errorMsg || null,
     });
   };
 
-  const openPreview = (key: string, label: string) => {
-    setPendingPlatform({ key, label });
-    setPreviewOpen(true);
-  };
-
   const confirmSend = async () => {
-    if (!pendingPlatform) return;
-    const { key, label } = pendingPlatform;
-    setPreviewOpen(false);
+    const payload = validateJson();
+    if (!payload) return;
 
-    const payload = buildPayload();
-    const webhookUrl = webhookUrls[key];
+    const config = platformConfigs[selectedPlatform];
+    const webhookUrl = webhookUrls[selectedPlatform];
+    const label = config.label;
 
     if (!webhookUrl) {
       await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
-      await logSend(label, "copied");
+      await logSend(label, "copied", payload);
       toast.info(`לא הוגדר Webhook ל-${label}. הנתונים הועתקו ללוח.`, {
         description: "הגדר כתובת Webhook בהגדרות כדי לשלוח ישירות",
       });
+      setDialogOpen(false);
       return;
     }
 
@@ -135,37 +156,30 @@ export default function SendToPlatformButton({
         mode: "no-cors",
       });
       setSentTo(label);
-      await logSend(label, "sent");
+      await logSend(label, "sent", payload);
       toast.success(`נשלח בהצלחה ל-${label}!`, { description: automation.name });
       setTimeout(() => setSentTo(null), 3000);
+      setDialogOpen(false);
     } catch (err: any) {
       setSentTo(label);
-      await logSend(label, "sent");
+      await logSend(label, "sent", payload);
       toast.success(`נשלח ל-${label}!`);
       setTimeout(() => setSentTo(null), 3000);
+      setDialogOpen(false);
     } finally {
       setSending(false);
-      setPendingPlatform(null);
     }
   };
 
-  const copyPreview = () => {
-    navigator.clipboard.writeText(JSON.stringify(buildPayload(), null, 2));
+  const copyJson = () => {
+    navigator.clipboard.writeText(jsonText);
     toast.success("ה-JSON הועתק ללוח!");
-  };
-
-  const handleQuickClick = () => {
-    if (defaultPlatform && platformConfigs[defaultPlatform]) {
-      openPreview(defaultPlatform, platformConfigs[defaultPlatform].label);
-    }
   };
 
   const buttonContent = sending ? (
     <><Loader2 className="h-3 w-3 animate-spin" /> שולח...</>
   ) : sentTo ? (
     <><Check className="h-3 w-3" /> נשלח!</>
-  ) : defaultPlatform && webhookUrls[defaultPlatform] ? (
-    <><Send className="h-3 w-3" /> שלח ל-{platformConfigs[defaultPlatform].label}</>
   ) : (
     <><Send className="h-3 w-3" /> שלח לפלטפורמה</>
   );
@@ -177,69 +191,106 @@ export default function SendToPlatformButton({
 
   return (
     <>
-      {defaultPlatform && webhookUrls[defaultPlatform] ? (
-        <Button size={size} variant={variant} disabled={sending} onClick={handleQuickClick} className={baseBtnClass}>
-          {buttonContent}
-        </Button>
-      ) : (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size={size} variant={variant} disabled={sending} className={baseBtnClass}>
-              {buttonContent}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-[180px]">
-            {Object.entries(platformConfigs).map(([key, config]) => (
-              <DropdownMenuItem
-                key={key}
-                onClick={() => openPreview(key, config.label)}
-                className={`gap-2 cursor-pointer ${config.bgColor}`}
-              >
-                <Zap className={`h-3.5 w-3.5 ${config.color}`} />
-                <span>שלח ל-{config.label}</span>
-                {webhookUrls[key] && (
-                  <span className="mr-auto h-1.5 w-1.5 rounded-full bg-success" />
-                )}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+      <Button size={size} variant={variant} disabled={sending} onClick={openDialog} className={baseBtnClass}>
+        {buttonContent}
+      </Button>
 
-      {/* Preview Dialog */}
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl bg-card border-border" dir="rtl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="h-5 w-5 text-primary" />
-              תצוגה מקדימה — שליחה ל-{pendingPlatform?.label}
+              תצוגה מקדימה ושליחה
             </DialogTitle>
             <DialogDescription>
-              להלן ה-JSON שיישלח ל-Webhook של {pendingPlatform?.label}.
-              {pendingPlatform && !webhookUrls[pendingPlatform.key] && (
-                <span className="block mt-2 text-amber-400 text-xs">
-                  ⚠ לא הוגדר Webhook — ה-JSON יועתק ללוח במקום להישלח.
-                </span>
-              )}
+              בחר פלטפורמה, ערוך את ה-JSON אם צריך, ולחץ "אישור ושליחה".
             </DialogDescription>
           </DialogHeader>
 
-          <div className="bg-background/80 rounded-lg p-4 border border-border max-h-[400px] overflow-auto">
-            <pre className="text-xs text-foreground font-mono whitespace-pre-wrap break-words">
-              {JSON.stringify(buildPayload(), null, 2)}
-            </pre>
+          {/* Platform selector */}
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground font-medium">בחר פלטפורמה:</p>
+            <div className="grid grid-cols-3 gap-2">
+              {Object.entries(platformConfigs).map(([key, config]) => {
+                const isActive = selectedPlatform === key;
+                const hasWebhook = !!webhookUrls[key];
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setSelectedPlatform(key)}
+                    className={`relative p-3 rounded-lg border transition-all text-right ${
+                      isActive
+                        ? "border-primary bg-primary/10"
+                        : "border-border bg-background/50 hover:border-primary/40"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`text-lg ${config.color}`}>{config.emoji}</span>
+                      <span
+                        className={`h-2 w-2 rounded-full ${
+                          hasWebhook ? "bg-success" : "bg-muted-foreground/40"
+                        }`}
+                        title={hasWebhook ? "Webhook הוגדר" : "לא הוגדר"}
+                      />
+                    </div>
+                    <p className={`text-sm font-medium ${isActive ? "text-primary" : "text-foreground"}`}>
+                      {config.label}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      {hasWebhook ? "מוכן לשליחה" : "לא הוגדר Webhook"}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+            {!webhookUrls[selectedPlatform] && (
+              <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 px-3 py-2 rounded">
+                <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+                <span>לא הוגדר Webhook ל-{platformConfigs[selectedPlatform].label} — ה-JSON יועתק ללוח במקום להישלח.</span>
+              </div>
+            )}
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-2">
-            <Button variant="outline" size="sm" onClick={copyPreview} className="gap-1.5">
-              <Copy className="h-3.5 w-3.5" /> העתק JSON
+          {/* Editable JSON */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground font-medium">JSON Payload (ניתן לעריכה):</p>
+              {jsonError && (
+                <span className="text-[10px] text-destructive">⚠ JSON לא תקין</span>
+              )}
+            </div>
+            <Textarea
+              value={jsonText}
+              onChange={(e) => {
+                setJsonText(e.target.value);
+                setJsonError(null);
+              }}
+              className={`font-mono text-xs min-h-[280px] max-h-[360px] bg-background/80 ${
+                jsonError ? "border-destructive" : "border-border"
+              }`}
+              dir="ltr"
+              spellCheck={false}
+            />
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={resetJson} className="gap-1.5">
+              <RotateCcw className="h-3.5 w-3.5" /> איפוס
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setPreviewOpen(false)}>
+            <Button variant="outline" size="sm" onClick={copyJson} className="gap-1.5">
+              <Copy className="h-3.5 w-3.5" /> העתק
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)}>
               ביטול
             </Button>
-            <Button size="sm" onClick={confirmSend} disabled={sending} className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button
+              size="sm"
+              onClick={confirmSend}
+              disabled={sending}
+              className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+            >
               <Send className="h-3.5 w-3.5" />
-              אישור ושליחה
+              {sending ? "שולח..." : `שלח ל-${platformConfigs[selectedPlatform].label}`}
             </Button>
           </DialogFooter>
         </DialogContent>

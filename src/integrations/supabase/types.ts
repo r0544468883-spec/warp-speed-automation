@@ -197,6 +197,45 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_articles: {
+        Row: {
+          automation_json: Json | null
+          id: string
+          platform: string | null
+          saved_at: string
+          snippet: string | null
+          source: string | null
+          title: string
+          tools_matched: string[] | null
+          url: string
+          user_id: string
+        }
+        Insert: {
+          automation_json?: Json | null
+          id?: string
+          platform?: string | null
+          saved_at?: string
+          snippet?: string | null
+          source?: string | null
+          title: string
+          tools_matched?: string[] | null
+          url: string
+          user_id: string
+        }
+        Update: {
+          automation_json?: Json | null
+          id?: string
+          platform?: string | null
+          saved_at?: string
+          snippet?: string | null
+          source?: string | null
+          title?: string
+          tools_matched?: string[] | null
+          url?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       smart_audits: {
         Row: {
           ai_analysis_json: Json | null
