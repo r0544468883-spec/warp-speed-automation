@@ -14,6 +14,7 @@ import ROI from "./pages/ROI";
 import SettingsPage from "./pages/SettingsPage";
 import ExtensionDownload from "./pages/ExtensionDownload";
 import SendHistory from "./pages/SendHistory";
+import LiveEvents from "./pages/LiveEvents";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/extension" element={<ProtectedRoute><ExtensionDownload /></ProtectedRoute>} />
             <Route path="/send-history" element={<ProtectedRoute><SendHistory /></ProtectedRoute>} />
+            <Route path="/live-events" element={<ProtectedRoute><LiveEvents /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
