@@ -3,9 +3,10 @@ import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Home, BookOpen, Video, Calculator, Settings, Zap,
-  ChevronLeft, ChevronRight, LogOut, Menu, X
+  ChevronLeft, ChevronRight, LogOut, Menu, X, User
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
   { path: "/", icon: Home, label: "בית" },
@@ -19,6 +20,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const { profile, signOut } = useAuth();
 
   return (
     <div className="flex min-h-screen bg-background" dir="rtl">
@@ -103,12 +105,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
 
-        {/* Collapse button */}
-        <div className="p-3 border-t border-border hidden md:block">
+        {/* User + Logout */}
+        <div className="p-3 border-t border-border space-y-2">
+          {profile && !collapsed && (
+            <div className="flex items-center gap-2 px-3 py-2">
+              <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center">
+                <User className="h-4 w-4 text-primary" />
+              </div>
+              <div className="overflow-hidden">
+                <p className="text-xs font-medium truncate">{profile.display_name || "משתמש"}</p>
+                <p className="text-[10px] text-muted-foreground capitalize">{profile.subscription_tier}</p>
+              </div>
+            </div>
+          )}
           <Button
             variant="ghost"
             size="sm"
-            className="w-full justify-center"
+            className="w-full justify-center text-muted-foreground hover:text-destructive"
+            onClick={signOut}
+          >
+            <LogOut className="h-4 w-4" />
+            {!collapsed && <span className="mr-2 text-xs">התנתק</span>}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-center hidden md:flex"
             onClick={() => setCollapsed(!collapsed)}
           >
             {collapsed ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
