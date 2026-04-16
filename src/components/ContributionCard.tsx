@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Heart, ExternalLink, Trash2, Workflow, User, Linkedin as LinkedinIcon, FileText, MessageSquare, Sparkles } from "lucide-react";
+import { Heart, ExternalLink, Trash2, Workflow, User, Briefcase, FileText, MessageSquare, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 const TYPE_META: Record<string, { icon: any; label: string; color: string }> = {
   automation: { icon: Workflow, label: "אוטומציה", color: "text-primary" },
   expert: { icon: User, label: "מומחה", color: "text-secondary" },
-  linkedin: { icon: Linkedin, label: "LinkedIn", color: "text-blue-400" },
+  linkedin: { icon: Briefcase, label: "LinkedIn", color: "text-blue-400" },
   case_study: { icon: FileText, label: "Case Study", color: "text-amber-400" },
   forum: { icon: MessageSquare, label: "פורום", color: "text-emerald-400" },
   other: { icon: Sparkles, label: "אחר", color: "text-muted-foreground" },
