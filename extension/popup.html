@@ -5,8 +5,41 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
+  <!-- Onboarding Screen -->
+  <div id="onboardingScreen" style="display:none" class="onboarding">
+    <div class="header">
+      <div>
+        <div class="logo">24.7</div>
+        <div class="subtitle">AUTOMATION</div>
+      </div>
+    </div>
+    <div class="onboarding-slide active" data-slide="0">
+      <div class="onboarding-icon">⚡</div>
+      <div class="onboarding-title">גלה דפוסים חוזרים</div>
+      <div class="onboarding-desc">התוסף סורק את העבודה שלך ומזהה משימות שחוזרות על עצמן — כמו העתקה מ-Gmail ל-Monday כל בוקר</div>
+      <div class="onboarding-dots"><div class="onboarding-dot active"></div><div class="onboarding-dot"></div><div class="onboarding-dot"></div></div>
+      <button class="btn btn-primary" onclick="nextSlide()">הבא →</button>
+      <span class="onboarding-skip" onclick="skipOnboarding()">דלג</span>
+    </div>
+    <div class="onboarding-slide" data-slide="1">
+      <div class="onboarding-icon">🤖</div>
+      <div class="onboarding-title">AI ממליץ על אוטומציות</div>
+      <div class="onboarding-desc">בינה מלאכותית מנתחת את הדפוסים ומציעה אוטומציות מוכנות ל-n8n, Make או Zapier</div>
+      <div class="onboarding-dots"><div class="onboarding-dot"></div><div class="onboarding-dot active"></div><div class="onboarding-dot"></div></div>
+      <button class="btn btn-primary" onclick="nextSlide()">הבא →</button>
+      <span class="onboarding-skip" onclick="skipOnboarding()">דלג</span>
+    </div>
+    <div class="onboarding-slide" data-slide="2">
+      <div class="onboarding-icon">🚀</div>
+      <div class="onboarding-title">יישום בלחיצה אחת</div>
+      <div class="onboarding-desc">שלח את האוטומציה ישירות לפלטפורמה שלך — או העתק את ה-JSON ובנה בעצמך</div>
+      <div class="onboarding-dots"><div class="onboarding-dot"></div><div class="onboarding-dot"></div><div class="onboarding-dot active"></div></div>
+      <button class="btn btn-primary" onclick="skipOnboarding()">בוא נתחיל! 🎉</button>
+    </div>
+  </div>
+
   <!-- Login Screen -->
-  <div id="loginScreen">
+  <div id="loginScreen" style="display:none">
     <div class="header">
       <div>
         <div class="logo">24.7</div>
@@ -20,9 +53,9 @@
       <div style="margin-top:10px;display:flex;gap:6px">
         <button class="btn btn-primary" id="loginBtn" style="flex:1">התחבר</button>
       </div>
-      <div id="loginError" style="color:#ef4444;font-size:11px;margin-top:6px;display:none"></div>
-      <div style="margin-top:10px;text-align:center">
-        <a href="https://id-preview--a4864d2a-1e61-41be-922b-cb1366d595f8.lovable.app/auth" target="_blank" style="color:#00F0FF;font-size:11px;text-decoration:none">אין חשבון? הירשם כאן →</a>
+      <div id="loginError" style="color:var(--red);font-size:11px;margin-top:6px;display:none"></div>
+      <div style="margin-top:12px;text-align:center">
+        <a href="https://id-preview--a4864d2a-1e61-41be-922b-cb1366d595f8.lovable.app/auth" target="_blank" style="color:var(--cyan);font-size:11px;text-decoration:none">אין חשבון? הירשם כאן →</a>
       </div>
     </div>
   </div>
@@ -34,7 +67,10 @@
         <div class="logo">24.7</div>
         <div class="subtitle">AUTOMATION</div>
       </div>
-      <button class="btn" id="logoutBtn" style="margin-right:auto;font-size:10px;color:#64748b">יציאה</button>
+      <div class="header-actions">
+        <button class="btn-icon" id="themeToggle" title="מצב תצוגה">🌙</button>
+        <button class="btn-icon" id="logoutBtn" title="התנתק">🚪</button>
+      </div>
     </div>
 
     <div class="status-bar">
@@ -42,7 +78,7 @@
         <div class="status-dot"></div>
         <span style="font-size:11px">סורק פעיל</span>
       </div>
-      <span id="patternCount" style="font-size:11px;color:#00F0FF">0 דפוסים</span>
+      <span id="patternCount" style="font-size:11px;color:var(--cyan);font-weight:600">0 דפוסים</span>
     </div>
 
     <!-- Alerts -->
@@ -53,24 +89,28 @@
 
     <!-- Active Apps -->
     <div class="section">
-      <div class="section-title">אפליקציות פעילות</div>
+      <div class="section-title">📱 אפליקציות פעילות</div>
       <div id="appList" class="app-list">
-        <div class="app-item" style="color:#475569;text-align:center;justify-content:center">טוען...</div>
+        <div class="skeleton skeleton-line" style="height:36px"></div>
+        <div class="skeleton skeleton-line" style="height:36px;width:80%"></div>
       </div>
     </div>
 
-    <!-- Per-Site Toggles -->
+    <!-- Per-Site Toggles (Collapsible) -->
     <div class="section" id="sitesSection">
-      <div class="section-title">🔒 פרטיות — אתרים</div>
-      <div id="sitesList" class="app-list"></div>
+      <div class="sites-toggle" id="sitesToggleBtn">
+        <span class="section-title" style="margin-bottom:0">🔒 פרטיות</span>
+        <span class="chevron" id="sitesChevron">▼</span>
+      </div>
+      <div class="sites-list" id="sitesList"></div>
     </div>
 
     <!-- Manual Mode -->
     <div class="section">
       <div class="section-title">🔧 מצב ידני</div>
-      <textarea class="manual-input" id="manualInput" rows="3" placeholder="תאר קושי או משימה חוזרת..."></textarea>
+      <textarea class="manual-input" id="manualInput" rows="2" placeholder="תאר קושי או משימה חוזרת..."></textarea>
       <div style="margin-top:8px;display:flex;gap:6px">
-        <button class="btn btn-primary" id="suggestBtn">💡 קבל המלצה</button>
+        <button class="btn btn-primary" id="suggestBtn" style="flex:1">💡 קבל המלצה</button>
         <button class="btn btn-primary" id="dashboardBtn">📊 דשבורד</button>
       </div>
       <div id="aiResult" style="display:none;margin-top:10px"></div>
