@@ -102,6 +102,16 @@ export default function SettingsPage() {
     }
   };
 
+  const saveToolStack = async () => {
+    if (!user) return;
+    setSavingTools(true);
+    const { error } = await supabase.from("profiles").update({ tool_stack: toolStack }).eq("user_id", user.id);
+    await supabase.from("ai_recommendations_cache").delete().eq("user_id", user.id);
+    setSavingTools(false);
+    if (error) toast.error("שגיאה בשמירה");
+    else toast.success("הכלים שלך נשמרו!");
+  };
+
   return (
     <DashboardLayout>
       <div className="mb-8">
