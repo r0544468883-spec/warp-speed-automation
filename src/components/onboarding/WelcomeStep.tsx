@@ -11,8 +11,26 @@ interface Props {
 
 export default function WelcomeStep({ nickname, bio, onChange }: Props) {
   return (
-    <div className="text-center">
-      <div className="inline-flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 border border-primary/30 mb-6">
+    <div className="text-center relative">
+      {/* Warp speed background */}
+      <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none rounded-2xl">
+        {Array.from({ length: 14 }).map((_, i) => (
+          <div
+            key={i}
+            className="absolute h-px animate-speed-lines"
+            style={{
+              top: `${(i * 7) % 100}%`,
+              width: `${30 + (i * 13) % 50}%`,
+              right: 0,
+              background: `linear-gradient(to left, transparent, hsl(var(--${i % 2 ? "secondary" : "primary"}) / 0.5), transparent)`,
+              animationDelay: `${(i * 0.15) % 1.5}s`,
+              animationDuration: `${1.2 + (i % 4) * 0.3}s`,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="inline-flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 border border-primary/30 mb-6 animate-pulse-glow">
         <Zap className="h-10 w-10 text-primary" />
       </div>
       <h2 className="text-3xl font-heading font-bold text-gradient mb-2">ברוך הבא ל-24.7 AUTOMATION 👋</h2>

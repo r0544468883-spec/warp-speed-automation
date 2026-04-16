@@ -17,6 +17,7 @@ import SendHistory from "./pages/SendHistory";
 import LiveEvents from "./pages/LiveEvents";
 import HelpUsGrow from "./pages/HelpUsGrow";
 import NotFound from "./pages/NotFound";
+import SpeedFlash from "./components/SpeedFlash";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <SpeedFlash />
       <BrowserRouter>
         <AuthProvider>
           <Routes>
