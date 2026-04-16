@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "24.7 AUTOMATION",
+  "version": "1.0.0",
+  "description": "AI-powered automation assistant – detects repetitive patterns and suggests automations",
+  "permissions": ["activeTab", "storage", "tabs"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://mail.google.com/*",
+        "*://*.monday.com/*",
+        "*://*.priority-software.com/*",
+        "*://*.fireberry.com/*",
+        "*://*.claude.ai/*",
+        "*://*.airtable.com/*",
+        "*://*.clickup.com/*",
+        "*://*.atlassian.net/*",
+        "*://*.hubspot.com/*",
+        "*://*.salesforce.com/*",
+        "*://*.slack.com/*",
+        "*://*.notion.so/*",
+        "*://*.linkedin.com/*",
+        "*://chat.openai.com/*",
+        "*://*.perplexity.ai/*",
+        "*://*.n8n.io/*",
+        "*://*.make.com/*",
+        "*://*.zapier.com/*",
+        "*://*.kaveret.co.il/*",
+        "*://*.sensei.co.il/*"
+      ],
+      "js": ["content.js"]
+    }
+  ],
+  "icons": {
+    "48": "icon.png",
+    "128": "icon.png"
+  }
+}
