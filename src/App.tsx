@@ -13,6 +13,7 @@ import SmartAudit from "./pages/SmartAudit";
 import ROI from "./pages/ROI";
 import SettingsPage from "./pages/SettingsPage";
 import ExtensionDownload from "./pages/ExtensionDownload";
+import SendHistory from "./pages/SendHistory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/roi" element={<ProtectedRoute><ROI /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="/extension" element={<ProtectedRoute><ExtensionDownload /></ProtectedRoute>} />
+            <Route path="/send-history" element={<ProtectedRoute><SendHistory /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
