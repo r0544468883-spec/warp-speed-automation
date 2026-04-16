@@ -79,16 +79,19 @@ export default function Wiki() {
     })();
   }, [user]);
 
-  const fetchRecommendations = useCallback(async () => {
+  const fetchRecommendations = useCallback(async (forceRefresh = false) => {
     if (toolStack.length === 0) return;
     setFeedLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("discover-automations", {
-        body: { tool_stack: toolStack },
+        body: { tool_stack: toolStack, force_refresh: forceRefresh },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setRecommendations(data?.recommendations || []);
+      if (data?.cached && !forceRefresh) {
+        toast.success("המלצות נטענו מהמטמון (תקף 24 שעות)");
+      }
       if ((data?.recommendations || []).length === 0) {
         toast.info("לא נמצאו המלצות חדשות. נסה לרענן בעוד רגע.");
       }
@@ -296,7 +299,7 @@ export default function Wiki() {
             </p>
           </div>
           <Button
-            onClick={fetchRecommendations}
+            onClick={() => fetchRecommendations(true)}
             disabled={feedLoading || toolStack.length === 0}
             variant="outline"
             className="gap-2"

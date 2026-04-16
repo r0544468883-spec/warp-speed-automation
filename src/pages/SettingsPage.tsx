@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings, Bell, Plug, CreditCard, User, Webhook } from "lucide-react";
+import { Settings, Bell, Plug, CreditCard, User, Webhook, Wrench } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import DashboardLayout from "@/components/DashboardLayout";
+import ToolStackEditor from "@/components/ToolStackEditor";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -31,7 +32,20 @@ export default function SettingsPage() {
   const [zapierUrl, setZapierUrl] = useState("");
   const [defaultPlatform, setDefaultPlatform] = useState<string>("none");
   const [saving, setSaving] = useState(false);
+  const [toolStack, setToolStack] = useState<string[]>([]);
+  const [savingTools, setSavingTools] = useState(false);
   const { user } = useAuth();
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("profiles")
+      .select("tool_stack")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.tool_stack) setToolStack(data.tool_stack as string[]);
+      });
 
   useEffect(() => {
     if (!user) return;
