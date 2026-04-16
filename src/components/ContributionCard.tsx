@@ -1,17 +1,34 @@
 import { motion } from "framer-motion";
-import { Heart, ExternalLink, Trash2, Workflow, User, Briefcase, FileText, MessageSquare, Sparkles } from "lucide-react";
+import { Heart, ExternalLink, Trash2, Workflow, User as UserIcon, Briefcase, FileText, MessageSquare, Sparkles, Globe, Github, Linkedin, Link as LinkIcon, Paperclip } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 const TYPE_META: Record<string, { icon: any; label: string; color: string }> = {
   automation: { icon: Workflow, label: "אוטומציה", color: "text-primary" },
-  expert: { icon: User, label: "מומחה", color: "text-secondary" },
+  expert: { icon: UserIcon, label: "מומחה", color: "text-secondary" },
   linkedin: { icon: Briefcase, label: "LinkedIn", color: "text-blue-400" },
   case_study: { icon: FileText, label: "Case Study", color: "text-amber-400" },
   forum: { icon: MessageSquare, label: "פורום", color: "text-emerald-400" },
   other: { icon: Sparkles, label: "אחר", color: "text-muted-foreground" },
 };
+
+export interface ContributorProfile {
+  display_name: string | null;
+  nickname: string | null;
+  avatar_url: string | null;
+  website_url: string | null;
+  github_url: string | null;
+  linkedin_url: string | null;
+  linktree_url: string | null;
+}
+
+export interface Attachment {
+  id: string;
+  file_url: string;
+  file_name: string;
+  mime_type: string | null;
+}
 
 export interface Contribution {
   id: string;
@@ -24,6 +41,8 @@ export interface Contribution {
   tools_related: string[] | null;
   upvotes: number;
   created_at: string;
+  profile?: ContributorProfile | null;
+  attachments?: Attachment[];
 }
 
 interface Props {
@@ -37,6 +56,8 @@ interface Props {
 export default function ContributionCard({ contribution, isOwner, hasVoted, onVote, onDelete }: Props) {
   const meta = TYPE_META[contribution.type] || TYPE_META.other;
   const Icon = meta.icon;
+  const profile = contribution.profile;
+  const author = profile?.nickname || profile?.display_name || "משתמש";
 
   return (
     <motion.div
@@ -70,6 +91,47 @@ export default function ContributionCard({ contribution, isOwner, hasVoted, onVo
             ))}
           </div>
         ) : null}
+
+        {contribution.attachments && contribution.attachments.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {contribution.attachments.slice(0, 3).map((a) => (
+              <a
+                key={a.id}
+                href={a.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-[10px] bg-muted/50 hover:bg-muted px-2 py-1 rounded text-muted-foreground hover:text-foreground"
+              >
+                <Paperclip className="h-3 w-3" />
+                <span className="truncate max-w-[120px]">{a.file_name}</span>
+              </a>
+            ))}
+          </div>
+        )}
+
+        {/* Author */}
+        <div className="flex items-center justify-between text-[11px] text-muted-foreground border-t border-border pt-2">
+          <div className="flex items-center gap-1.5">
+            <div className="h-5 w-5 rounded-full bg-primary/20 flex items-center justify-center">
+              <UserIcon className="h-3 w-3 text-primary" />
+            </div>
+            <span>{author}</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            {profile?.website_url && (
+              <a href={profile.website_url} target="_blank" rel="noopener noreferrer" className="hover:text-primary"><Globe className="h-3 w-3" /></a>
+            )}
+            {profile?.github_url && (
+              <a href={profile.github_url} target="_blank" rel="noopener noreferrer" className="hover:text-primary"><Github className="h-3 w-3" /></a>
+            )}
+            {profile?.linkedin_url && (
+              <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="hover:text-primary"><Linkedin className="h-3 w-3" /></a>
+            )}
+            {profile?.linktree_url && (
+              <a href={profile.linktree_url} target="_blank" rel="noopener noreferrer" className="hover:text-primary"><LinkIcon className="h-3 w-3" /></a>
+            )}
+          </div>
+        </div>
 
         <div className="flex items-center justify-between pt-2 border-t border-border">
           <Button
