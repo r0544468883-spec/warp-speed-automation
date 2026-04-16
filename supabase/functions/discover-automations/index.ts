@@ -38,12 +38,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Identify the calling user from the JWT
+    // Identify the calling user from the JWT (validate in code since verify_jwt=false)
     const authHeader = req.headers.get("Authorization") || "";
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user } } = await supabase.auth.getUser();
+    let user: { id: string } | null = null;
+    if (authHeader.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "");
+      const { data, error } = await supabase.auth.getClaims(token);
+      if (!error && data?.claims?.sub) {
+        user = { id: data.claims.sub as string };
+      }
+    }
 
     const stackHash = await hashStack(tools);
 
