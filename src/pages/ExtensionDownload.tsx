@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import DashboardLayout from "@/components/DashboardLayout";
 
 const browsers = [
-  { name: "Google Chrome", icon: Chrome },
+  { name: "Google Chrome", icon: Globe },
   { name: "Microsoft Edge", icon: Monitor },
   { name: "Brave", icon: Shield },
   { name: "Arc", icon: Zap },
