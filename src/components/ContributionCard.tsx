@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Heart, ExternalLink, Trash2, Workflow, User as UserIcon, Briefcase, FileText, MessageSquare, Sparkles, Globe, Github as GithubIcon, Linkedin as LinkedinIcon, Link as LinkIcon, Paperclip } from "lucide-react";
+import { Heart, ExternalLink, Trash2, Workflow, User as UserIcon, Briefcase, FileText, MessageSquare, Sparkles, Globe, Code2, Link as LinkIcon, Paperclip } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -122,10 +122,10 @@ export default function ContributionCard({ contribution, isOwner, hasVoted, onVo
               <a href={profile.website_url} target="_blank" rel="noopener noreferrer" className="hover:text-primary"><Globe className="h-3 w-3" /></a>
             )}
             {profile?.github_url && (
-              <a href={profile.github_url} target="_blank" rel="noopener noreferrer" className="hover:text-primary"><Github className="h-3 w-3" /></a>
+              <a href={profile.github_url} target="_blank" rel="noopener noreferrer" className="hover:text-primary" title="GitHub"><Code2 className="h-3 w-3" /></a>
             )}
             {profile?.linkedin_url && (
-              <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="hover:text-primary"><Linkedin className="h-3 w-3" /></a>
+              <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="hover:text-primary" title="LinkedIn"><Briefcase className="h-3 w-3" /></a>
             )}
             {profile?.linktree_url && (
               <a href={profile.linktree_url} target="_blank" rel="noopener noreferrer" className="hover:text-primary"><LinkIcon className="h-3 w-3" /></a>

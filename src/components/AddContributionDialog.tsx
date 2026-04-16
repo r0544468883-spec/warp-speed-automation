@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Loader2, Upload, X, Globe, Github as GithubIcon, Linkedin as LinkedinIcon, Link as LinkIcon } from "lucide-react";
+import { Plus, Loader2, Upload, X, Globe, Code2, Briefcase, Link as LinkIcon } from "lucide-react";
 
 const TYPES = [
   { value: "automation", label: "אוטומציה" },
@@ -95,7 +95,7 @@ export default function AddContributionDialog({ onCreated }: { onCreated?: () =>
       if (parsed.data.linkedin_url) identityPatch.linkedin_url = parsed.data.linkedin_url;
       if (parsed.data.linktree_url) identityPatch.linktree_url = parsed.data.linktree_url;
       if (Object.keys(identityPatch).length > 0) {
-        await supabase.from("profiles").update(identityPatch).eq("user_id", user.id);
+        await supabase.from("profiles").update(identityPatch as any).eq("user_id", user.id);
       }
 
       // Insert contribution
@@ -229,11 +229,11 @@ export default function AddContributionDialog({ onCreated }: { onCreated?: () =>
                   <Input value={form.website_url} onChange={(e) => setForm({ ...form, website_url: e.target.value })} placeholder="https://..." dir="ltr" className="text-xs" />
                 </div>
                 <div>
-                  <Label className="text-xs flex items-center gap-1"><Github className="h-3 w-3" /> GitHub</Label>
+                  <Label className="text-xs flex items-center gap-1"><Code2 className="h-3 w-3" /> GitHub</Label>
                   <Input value={form.github_url} onChange={(e) => setForm({ ...form, github_url: e.target.value })} placeholder="https://github.com/..." dir="ltr" className="text-xs" />
                 </div>
                 <div>
-                  <Label className="text-xs flex items-center gap-1"><Linkedin className="h-3 w-3" /> LinkedIn</Label>
+                  <Label className="text-xs flex items-center gap-1"><Briefcase className="h-3 w-3" /> LinkedIn</Label>
                   <Input value={form.linkedin_url} onChange={(e) => setForm({ ...form, linkedin_url: e.target.value })} placeholder="https://linkedin.com/in/..." dir="ltr" className="text-xs" />
                 </div>
                 <div>
