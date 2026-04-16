@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Loader2, Upload, X, Globe, Github, Linkedin, Link as LinkIcon } from "lucide-react";
+import { Plus, Loader2, Upload, X, Globe, Github as GithubIcon, Linkedin as LinkedinIcon, Link as LinkIcon } from "lucide-react";
 
 const TYPES = [
   { value: "automation", label: "אוטומציה" },
