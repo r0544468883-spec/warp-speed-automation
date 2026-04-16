@@ -14,7 +14,7 @@ export default function ExtensionStep() {
   return (
     <div className="text-center">
       <div className="inline-flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 border border-primary/30 mb-4">
-        <Chrome className="h-10 w-10 text-primary" />
+        <Puzzle className="h-10 w-10 text-primary" />
       </div>
       <h2 className="text-2xl font-heading font-bold text-gradient mb-2">תוסף Chrome 🧩</h2>
       <p className="text-muted-foreground text-sm mb-6">הסוד שמאפשר ל-24.7 לזהות אוטומציות מבלי שתרים אצבע</p>
