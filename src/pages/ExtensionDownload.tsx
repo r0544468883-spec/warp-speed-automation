@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Download, Chrome, Shield, Monitor, Zap, CheckCircle } from "lucide-react";
+import { Download, Globe, Shield, Monitor, Zap, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardLayout from "@/components/DashboardLayout";
 
