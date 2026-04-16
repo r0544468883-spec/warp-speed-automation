@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Settings, Bell, Plug, CreditCard, User, Webhook, Wrench } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Settings, Bell, Plug, CreditCard, User, Webhook, Wrench, Sparkles } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -34,7 +35,18 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [toolStack, setToolStack] = useState<string[]>([]);
   const [savingTools, setSavingTools] = useState(false);
+  const [restarting, setRestarting] = useState(false);
   const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const restartOnboarding = async () => {
+    if (!user) return;
+    setRestarting(true);
+    const { error } = await supabase.from("profiles").update({ onboarding_completed: false }).eq("user_id", user.id);
+    setRestarting(false);
+    if (error) return toast.error("שגיאה");
+    navigate("/onboarding");
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -158,6 +170,15 @@ export default function SettingsPage() {
             </div>
             <Button className="w-full bg-gradient-to-l from-primary to-secondary text-primary-foreground">
               <CreditCard className="h-4 w-4 ml-2" /> שדרג ל-Pro
+            </Button>
+            <Button
+              onClick={restartOnboarding}
+              disabled={restarting}
+              variant="outline"
+              className="w-full gap-2"
+            >
+              <Sparkles className="h-4 w-4" />
+              {restarting ? "טוען..." : "הצג סיור מחדש"}
             </Button>
           </CardContent>
         </Card>
