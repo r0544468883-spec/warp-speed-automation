@@ -6,6 +6,7 @@ import {
   ChevronLeft, ChevronRight, LogOut, Menu, X, User
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
@@ -34,9 +35,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Zap className="h-6 w-6 text-primary" />
           <span className="font-heading font-bold text-lg text-gradient">24.7</span>
         </div>
-        <Button variant="ghost" size="icon" onClick={() => setMobileOpen(!mobileOpen)}>
-          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </Button>
+        <div className="flex items-center gap-2">
+          {profile && (
+            <Avatar className="h-8 w-8 border border-primary/30">
+              <AvatarImage src={profile.avatar_url || undefined} />
+              <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                {(profile.nickname || profile.display_name || "U").slice(0, 1).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          )}
+          <Button variant="ghost" size="icon" onClick={() => setMobileOpen(!mobileOpen)}>
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
+        </div>
       </div>
 
       {/* Mobile overlay */}
@@ -113,13 +124,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="p-3 border-t border-border space-y-2">
           {profile && !collapsed && (
             <div className="flex items-center gap-2 px-3 py-2">
-              <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center">
-                <User className="h-4 w-4 text-primary" />
-              </div>
+              <Avatar className="h-8 w-8 border border-primary/30">
+                <AvatarImage src={profile.avatar_url || undefined} />
+                <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                  {(profile.nickname || profile.display_name || "U").slice(0, 1).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
               <div className="overflow-hidden">
-                <p className="text-xs font-medium truncate">{profile.display_name || "משתמש"}</p>
+                <p className="text-xs font-medium truncate">{profile.nickname || profile.display_name || "משתמש"}</p>
                 <p className="text-[10px] text-muted-foreground capitalize">{profile.subscription_tier}</p>
               </div>
+            </div>
+          )}
+          {profile && collapsed && (
+            <div className="flex justify-center py-2">
+              <Avatar className="h-8 w-8 border border-primary/30">
+                <AvatarImage src={profile.avatar_url || undefined} />
+                <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                  {(profile.nickname || profile.display_name || "U").slice(0, 1).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
             </div>
           )}
           <Button

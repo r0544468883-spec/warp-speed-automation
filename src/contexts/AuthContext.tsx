@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface Profile {
   display_name: string | null;
+  nickname: string | null;
+  avatar_url: string | null;
   onboarding_completed: boolean;
   industry_type: string | null;
   tool_stack: string[] | null;
@@ -37,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
       .from("profiles")
-      .select("display_name, onboarding_completed, industry_type, tool_stack, subscription_tier")
+      .select("display_name, nickname, avatar_url, onboarding_completed, industry_type, tool_stack, subscription_tier")
       .eq("user_id", userId)
       .single();
     setProfile(data);

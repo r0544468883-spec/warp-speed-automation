@@ -45,6 +45,9 @@ export default function Index() {
       if (error) throw error;
       if (data?.suggestions) {
         setSuggestions(data.suggestions);
+        // Trigger global speed flash when AI detects patterns
+        const { triggerSpeedFlash } = await import("@/components/SpeedFlash");
+        triggerSpeedFlash();
       }
     } catch (err: any) {
       console.error(err);
