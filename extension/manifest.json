@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "24.7 AUTOMATION",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "AI-powered automation assistant – detects repetitive patterns and suggests automations",
-  "permissions": ["activeTab", "storage", "tabs"],
+  "permissions": ["activeTab", "storage", "tabs", "alarms", "notifications"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": "icon.png"

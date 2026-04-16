@@ -2,217 +2,85 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      width: 360px;
-      min-height: 400px;
-      background: #020617;
-      color: #e2e8f0;
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      font-size: 13px;
-    }
-    .header {
-      padding: 16px;
-      border-bottom: 1px solid #1e293b;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .header .logo {
-      font-size: 20px;
-      font-weight: 700;
-      background: linear-gradient(135deg, #00F0FF, #7000FF);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .header .subtitle {
-      font-size: 9px;
-      letter-spacing: 3px;
-      color: #64748b;
-      text-transform: uppercase;
-    }
-    .status-bar {
-      padding: 12px 16px;
-      background: #0f172a;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .status-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: #22c55e;
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
-    .section { padding: 16px; }
-    .section-title {
-      font-size: 11px;
-      color: #64748b;
-      margin-bottom: 10px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-    .app-list { display: flex; flex-direction: column; gap: 6px; }
-    .app-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 8px 12px;
-      background: #0f172a;
-      border-radius: 8px;
-      border: 1px solid #1e293b;
-    }
-    .app-item.active { border-color: rgba(0, 240, 255, 0.3); }
-    .alert-card {
-      padding: 12px;
-      background: rgba(0, 240, 255, 0.05);
-      border: 1px solid rgba(0, 240, 255, 0.2);
-      border-radius: 8px;
-      margin-bottom: 8px;
-    }
-    .alert-card .title { font-weight: 600; margin-bottom: 4px; color: #00F0FF; font-size: 12px; }
-    .alert-card .desc { font-size: 11px; color: #94a3b8; }
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 6px 12px;
-      border-radius: 6px;
-      border: none;
-      cursor: pointer;
-      font-size: 11px;
-      font-weight: 600;
-    }
-    .btn-primary {
-      background: linear-gradient(135deg, rgba(0,240,255,0.15), rgba(112,0,255,0.15));
-      color: #00F0FF;
-      border: 1px solid rgba(0,240,255,0.3);
-    }
-    .btn-primary:hover { background: rgba(0,240,255,0.2); }
-    .speedometer {
-      width: 80px; height: 80px;
-      margin: 0 auto 10px;
-    }
-    .manual-input {
-      width: 100%;
-      padding: 10px 12px;
-      background: #0f172a;
-      border: 1px solid #1e293b;
-      border-radius: 8px;
-      color: #e2e8f0;
-      font-size: 12px;
-      resize: none;
-    }
-    .manual-input::placeholder { color: #475569; }
-    .manual-input:focus { outline: none; border-color: #00F0FF; }
-    .footer {
-      padding: 12px 16px;
-      border-top: 1px solid #1e293b;
-      text-align: center;
-    }
-    .footer a {
-      color: #00F0FF;
-      text-decoration: none;
-      font-size: 11px;
-    }
-  </style>
+  <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="header">
-    <div>
-      <div class="logo">24.7</div>
-      <div class="subtitle">AUTOMATION</div>
+  <!-- Login Screen -->
+  <div id="loginScreen">
+    <div class="header">
+      <div>
+        <div class="logo">24.7</div>
+        <div class="subtitle">AUTOMATION</div>
+      </div>
     </div>
-  </div>
-
-  <div class="status-bar">
-    <div style="display:flex;align-items:center;gap:8px">
-      <div class="status-dot"></div>
-      <span style="font-size:11px">סורק פעיל</span>
-    </div>
-    <span id="patternCount" style="font-size:11px;color:#00F0FF">0 דפוסים</span>
-  </div>
-
-  <!-- Alerts -->
-  <div class="section" id="alertsSection" style="display:none">
-    <div class="section-title">⚡ המלצות</div>
-    <div id="alertsList"></div>
-  </div>
-
-  <!-- Active Apps -->
-  <div class="section">
-    <div class="section-title">אפליקציות פעילות</div>
-    <div id="appList" class="app-list">
-      <div class="app-item" style="color:#475569;text-align:center;justify-content:center">
-        טוען...
+    <div class="section">
+      <div class="section-title">🔐 התחברות</div>
+      <input type="email" class="manual-input" id="loginEmail" placeholder="אימייל" style="margin-bottom:8px">
+      <input type="password" class="manual-input" id="loginPassword" placeholder="סיסמה">
+      <div style="margin-top:10px;display:flex;gap:6px">
+        <button class="btn btn-primary" id="loginBtn" style="flex:1">התחבר</button>
+      </div>
+      <div id="loginError" style="color:#ef4444;font-size:11px;margin-top:6px;display:none"></div>
+      <div style="margin-top:10px;text-align:center">
+        <a href="https://id-preview--a4864d2a-1e61-41be-922b-cb1366d595f8.lovable.app/auth" target="_blank" style="color:#00F0FF;font-size:11px;text-decoration:none">אין חשבון? הירשם כאן →</a>
       </div>
     </div>
   </div>
 
-  <!-- Manual Mode -->
-  <div class="section">
-    <div class="section-title">🔧 מצב ידני</div>
-    <textarea class="manual-input" id="manualInput" rows="3" placeholder="תאר קושי או משימה חוזרת..."></textarea>
-    <div style="margin-top:8px;display:flex;gap:6px">
-      <button class="btn btn-primary" id="suggestBtn">💡 קבל המלצה</button>
-      <button class="btn btn-primary" onclick="window.open('DASHBOARD_URL', '_blank')">📊 דשבורד</button>
+  <!-- Main Screen -->
+  <div id="mainScreen" style="display:none">
+    <div class="header">
+      <div>
+        <div class="logo">24.7</div>
+        <div class="subtitle">AUTOMATION</div>
+      </div>
+      <button class="btn" id="logoutBtn" style="margin-right:auto;font-size:10px;color:#64748b">יציאה</button>
+    </div>
+
+    <div class="status-bar">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="status-dot"></div>
+        <span style="font-size:11px">סורק פעיל</span>
+      </div>
+      <span id="patternCount" style="font-size:11px;color:#00F0FF">0 דפוסים</span>
+    </div>
+
+    <!-- Alerts -->
+    <div class="section" id="alertsSection" style="display:none">
+      <div class="section-title">⚡ רצפים חוזרים</div>
+      <div id="alertsList"></div>
+    </div>
+
+    <!-- Active Apps -->
+    <div class="section">
+      <div class="section-title">אפליקציות פעילות</div>
+      <div id="appList" class="app-list">
+        <div class="app-item" style="color:#475569;text-align:center;justify-content:center">טוען...</div>
+      </div>
+    </div>
+
+    <!-- Per-Site Toggles -->
+    <div class="section" id="sitesSection">
+      <div class="section-title">🔒 פרטיות — אתרים</div>
+      <div id="sitesList" class="app-list"></div>
+    </div>
+
+    <!-- Manual Mode -->
+    <div class="section">
+      <div class="section-title">🔧 מצב ידני</div>
+      <textarea class="manual-input" id="manualInput" rows="3" placeholder="תאר קושי או משימה חוזרת..."></textarea>
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <button class="btn btn-primary" id="suggestBtn">💡 קבל המלצה</button>
+        <button class="btn btn-primary" id="dashboardBtn">📊 דשבורד</button>
+      </div>
+      <div id="aiResult" style="display:none;margin-top:10px"></div>
+    </div>
+
+    <div class="footer">
+      <a href="https://id-preview--a4864d2a-1e61-41be-922b-cb1366d595f8.lovable.app" target="_blank">פתח דשבורד מלא →</a>
     </div>
   </div>
 
-  <div class="footer">
-    <a href="#" id="openDashboard">פתח דשבורד מלא →</a>
-  </div>
-
-  <script>
-    // Load status from background
-    chrome.runtime.sendMessage({ type: 'GET_STATUS' }, (response) => {
-      if (!response) return;
-
-      // Update pattern count
-      document.getElementById('patternCount').textContent = `${response.totalPatterns} דפוסים`;
-
-      // Update active apps
-      const appList = document.getElementById('appList');
-      if (response.activeApps.length > 0) {
-        appList.innerHTML = response.activeApps.map(app =>
-          `<div class="app-item active">
-            <span>${app}</span>
-            <div class="status-dot"></div>
-          </div>`
-        ).join('');
-      } else {
-        appList.innerHTML = '<div class="app-item" style="color:#475569;text-align:center;justify-content:center">לא זוהו אפליקציות</div>';
-      }
-
-      // Update alerts
-      if (response.patternAlerts.length > 0) {
-        document.getElementById('alertsSection').style.display = 'block';
-        document.getElementById('alertsList').innerHTML = response.patternAlerts.slice(-3).map(alert =>
-          `<div class="alert-card">
-            <div class="title">דפוס חוזר ב-${alert.app}</div>
-            <div class="desc">זוהה ${alert.count} פעמים — לחץ לאוטומציה</div>
-            <div style="margin-top:8px;display:flex;gap:6px">
-              <button class="btn btn-primary">📤 n8n</button>
-              <button class="btn btn-primary">📤 Make</button>
-              <button class="btn btn-primary">📤 Zapier</button>
-            </div>
-          </div>`
-        ).join('');
-      }
-    });
-
-    // Manual mode
-    document.getElementById('suggestBtn').addEventListener('click', () => {
-      const input = document.getElementById('manualInput').value;
-      if (!input.trim()) return;
-      // In production, this would call the AI edge function
-      alert('בגרסת ה-MVP, המלצות יתקבלו מהדשבורד. פותח...');
-    });
-  </script>
+  <script src="popup.js"></script>
 </body>
 </html>
