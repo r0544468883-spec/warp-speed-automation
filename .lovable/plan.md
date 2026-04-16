@@ -1,70 +1,84 @@
 
-## תוכנית: שדרוג דיאלוג שליחה + הפיכת הוויקי לפיד אישי
+## תוכנית: Help Us Grow — מסך תרומות קהילה
 
-### חלק 1: שדרוג SendToPlatformButton
-**בחירת פלטפורמה בתוך הדיאלוג + עריכת JSON:**
-- הסרת לוגיקת ה-quick send לפי `defaultPlatform` — כפתור יחיד תמיד פותח דיאלוג
-- בדיאלוג יתווספו 3 טאבים/כפתורי בחירה: n8n / Make / Zapier (עם סטטוס webhook configured/missing לכל אחד)
-- ה-JSON יוצג ב-`<Textarea>` הניתן לעריכה במקום `<pre>` קריא בלבד
-- ולידציה: לפני שליחה — `JSON.parse` עם הצגת toast שגיאה אם לא תקין
-- כפתור "Reset" להחזרת ה-JSON המקורי
-- שליחה משתמשת ב-JSON שנערך + בפלטפורמה שנבחרה
+### המטרה
+מסך חדש שבו משתמשים תורמים תוכן לקהילה: אוטומציות שעשו, מומחים שכדאי לעקוב, דפי לינקדין, קייס סטאדיז ופורומים. כל ההמלצות נצברות, מקבלות לייקים, ואפשר לסנן לפי קטגוריה.
 
-### חלק 2: הפיכת הוויקי לפיד המלצות אישי
+### חלק 1: סכמת DB
 
-**הרעיון החדש:** במקום ויקי סטטי מהDB → פיד דינמי שמצליב את ה-`tool_stack` של המשתמש (מ-`profiles`) עם חיפוש חי ברשת ומחזיר מאמרים + תהליכי אוטומציה רלוונטיים.
+**טבלה חדשה `community_contributions`:**
+- `id, user_id, type` (enum: `automation` / `expert` / `linkedin` / `case_study` / `forum` / `other`)
+- `title, description, url, tags[], tools_related[]`
+- `upvotes` (int, default 0)
+- `status` (`pending` / `approved` — כל התרומות מוצגות מיידית, אדמין יכול לסמן approved להבלטה)
+- `created_at, updated_at`
 
-**שינויים נדרשים:**
+**טבלה חדשה `contribution_votes`:**
+- `id, contribution_id, user_id, created_at`
+- UNIQUE על `(contribution_id, user_id)` — מונע כפל הצבעות
 
-1. **טבלה חדשה `saved_articles`** (migration):
-   - `id, user_id, title, url, snippet, source, tools_matched (text[]), saved_at`
-   - RLS: רק הבעלים רואה/מוסיף/מוחק
+**RLS:**
+- `community_contributions`: SELECT לכולם המאומתים; INSERT — `auth.uid() = user_id`; UPDATE/DELETE — בעלים בלבד
+- `contribution_votes`: SELECT לכולם; INSERT/DELETE — `auth.uid() = user_id`
+- **טריגר** שמעדכן `upvotes` ב-`community_contributions` בכל insert/delete ב-`contribution_votes`
 
-2. **Edge Function חדש `discover-automations`**:
-   - קלט: `tool_stack` של המשתמש (למשל `["whatsapp","monday"]`)
-   - יוצר combinations של זוגות כלים
-   - משתמש ב-**Lovable AI** (`google/gemini-3-flash-preview`) עם web grounding/חיפוש כדי להחזיר 8-12 המלצות מאמרים אמיתיים מהרשת (כותרת, URL, תקציר, רשימת trigger/action, פלטפורמה מומלצת)
-   - מחזיר JSON מובנה דרך tool calling
-   - cache פנימי לפי tool_stack hash + timestamp (כדי שריענון יביא תוצאות חדשות)
+### חלק 2: Edge Function `submit-contribution` (אופציונלי)
+ולידציה נוספת בשרת + בדיקת URL תקין. ניתן לדלג בשלב הראשון ולהשתמש בinsert ישיר עם zod client-side.
 
-3. **שכתוב `src/pages/Wiki.tsx`**:
-   - שינוי שם תצוגתי: "פיד אוטומציות מותאם אישית" 
-   - בעת טעינה: מושך `tool_stack` מ-`profiles`, אם ריק → מציג CTA לעדכון בהגדרות
-   - כפתור **"רענן המלצות"** (מפעיל edge function שוב)
-   - כל כרטיס: כותרת + תקציר + tags של הכלים שתואמים + 3 כפתורים:
-     - "שמור לאחר כך" (saved_articles insert/delete + אייקון bookmark מתמלא)
-     - "צפה במקור" (פתיחת URL)
-     - "שלח לפלטפורמה" (אם יש automation_json מובנה)
-   - **טאב "שמורים"** — מציג רק את המאמרים מ-`saved_articles`
-   - מחיקה משמורים בלחיצה על bookmark מלא
+### חלק 3: UI — `src/pages/HelpUsGrow.tsx`
 
+**Layout:**
 ```text
-┌──────────────── פיד אוטומציות ────────────────┐
-│ Tabs: [המלצות לי] [שמורים]      [🔄 רענן]     │
-│                                                │
-│ הכלים שלך: WhatsApp · Monday · Gmail          │
-├────────────────────────────────────────────────┤
-│ ┌─────────────┐ ┌─────────────┐               │
-│ │ מאמר n8n    │ │ Make tutorial│               │
-│ │ WA→Monday   │ │ Gmail→Monday │               │
-│ │ #whatsapp   │ │ #gmail       │               │
-│ │ 🔖 🔗 ⚡    │ │ 🔖 🔗 ⚡     │               │
-│ └─────────────┘ └─────────────┘               │
-└────────────────────────────────────────────────┘
+┌──── Help Us Grow 🌱 ────────────────────┐
+│ "תרום לקהילה — שתף מה שעבד אצלך"        │
+│                          [+ הוסף המלצה] │
+├──────────────────────────────────────────┤
+│ Tabs: [הכל] [אוטומציות] [מומחים]        │
+│        [LinkedIn] [Case Studies] [פורומים]│
+├──────────────────────────────────────────┤
+│ ┌─────────────┐ ┌─────────────┐         │
+│ │ type-icon   │ │ type-icon   │         │
+│ │ כותרת       │ │ כותרת       │         │
+│ │ תיאור קצר   │ │ תיאור קצר   │         │
+│ │ #tags       │ │ #tags       │         │
+│ │ ❤ 24  🔗   │ │ ❤ 12  🔗   │         │
+│ │ by @user    │ │ by @user    │         │
+│ └─────────────┘ └─────────────┘         │
+└──────────────────────────────────────────┘
 ```
 
-### Technical Details
-- Edge function: `verify_jwt = true` (זקוק ל-user.id לבדיקת tool_stack)
-- ניצול `LOVABLE_API_KEY` הקיים — אין צורך בסודות חדשים
-- prompt ל-AI: דרישה מפורשת להחזיר URLs אמיתיים מ-n8n.io/community, make.com/templates, zapier.com/apps, medium, dev.to
-- Tool calling schema: `recommendations: [{title, url, source, snippet, platform, tools_used[], trigger, action}]`
-- שימור ה-`automation_wiki` הקיים כ-fallback אם ה-AI לא מחזיר תוצאות
+**דיאלוג "הוסף המלצה":**
+- בחירת `type` (Select)
+- כותרת (max 120), תיאור (max 500), URL (validation), תגיות (comma-separated → array), כלים קשורים (multi-select מתוך `tool_stack` של המשתמש + free input)
+- Zod validation client-side
+- שליחה ישירה ל-`community_contributions` עם `user_id = auth.uid()`
+
+**אינטראקציות בכרטיס:**
+- כפתור לב (toggle) — insert/delete ב-`contribution_votes`; UI אופטימיסטי
+- כפתור 🔗 פותח URL בטאב חדש
+- אם זה `automation` ויש `automation_json` בעתיד — כפתור SendToPlatformButton (גנרי, אבל בשלב הראשון לא חובה)
+- האייקון לכל type שונה (Workflow / User / Linkedin / FileText / MessageSquare)
+- מי שתרם רואה כפתור "מחק" משלו
+
+**מיון/סינון:**
+- ברירת מחדל: לפי `upvotes DESC, created_at DESC`
+- חיפוש חופשי בכותרת/תיאור/tags
+- סינון לפי tab של type
+
+### חלק 4: ניווט
+הוספת פריט חדש ב-`DashboardLayout.tsx`:
+- path: `/help-us-grow`, icon: `Sprout` (או `Heart`), label: "תרום לקהילה"
+- רישום ב-`App.tsx` עם `ProtectedRoute`
+
+### Technical
+- שימוש ב-zod לולידציה (להתקין אם אין: כבר יש בפרויקט דרך shadcn forms)
+- ה-`upvotes` counter דרך טריגר Postgres — מונע race conditions
+- realtime אופציונלי בעתיד (`ALTER PUBLICATION supabase_realtime ADD TABLE community_contributions`) — נשאיר לשיפור עתידי
+- כל הטקסטים בעברית, RTL
 
 ### קבצים מושפעים
-- **migration**: יצירת `saved_articles` + RLS
-- **edge function חדשה**: `supabase/functions/discover-automations/index.ts` + רישום ב-`config.toml`
-- **`src/components/SendToPlatformButton.tsx`**: בחירת פלטפורמה + Textarea לעריכת JSON
-- **`src/pages/Wiki.tsx`**: שכתוב מלא לפיד דינמי עם טאבים ושמורים
-
-### הערה
-אם ה-`tool_stack` של המשתמש ריק (לא השלים onboarding) → במקום פיד נציג כרטיס הזמנה לעדכן את הכלים שלו בהגדרות, עם קישור ישיר.
+- **migration**: `community_contributions` + `contribution_votes` + טריגר upvotes + RLS
+- **חדש**: `src/pages/HelpUsGrow.tsx`
+- **חדש**: `src/components/ContributionCard.tsx` (לסדר את הקוד)
+- **חדש**: `src/components/AddContributionDialog.tsx`
+- **עריכה**: `src/App.tsx` (route חדש), `src/components/DashboardLayout.tsx` (פריט ניווט)
