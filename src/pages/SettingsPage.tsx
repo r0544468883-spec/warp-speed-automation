@@ -37,6 +37,7 @@ export default function SettingsPage() {
   const { user } = useAuth();
 
   useEffect(() => {
+  useEffect(() => {
     if (!user) return;
     supabase
       .from("profiles")
@@ -46,6 +47,7 @@ export default function SettingsPage() {
       .then(({ data }) => {
         if (data?.tool_stack) setToolStack(data.tool_stack as string[]);
       });
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
