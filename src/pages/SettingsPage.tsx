@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings, Bell, Plug, CreditCard, User, Webhook } from "lucide-react";
+import { Settings, Bell, Plug, CreditCard, User, Webhook, Wrench } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import DashboardLayout from "@/components/DashboardLayout";
+import ToolStackEditor from "@/components/ToolStackEditor";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -31,7 +32,21 @@ export default function SettingsPage() {
   const [zapierUrl, setZapierUrl] = useState("");
   const [defaultPlatform, setDefaultPlatform] = useState<string>("none");
   const [saving, setSaving] = useState(false);
+  const [toolStack, setToolStack] = useState<string[]>([]);
+  const [savingTools, setSavingTools] = useState(false);
   const { user } = useAuth();
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("profiles")
+      .select("tool_stack")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.tool_stack) setToolStack(data.tool_stack as string[]);
+      });
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -87,6 +102,16 @@ export default function SettingsPage() {
     }
   };
 
+  const saveToolStack = async () => {
+    if (!user) return;
+    setSavingTools(true);
+    const { error } = await supabase.from("profiles").update({ tool_stack: toolStack }).eq("user_id", user.id);
+    await supabase.from("ai_recommendations_cache").delete().eq("user_id", user.id);
+    setSavingTools(false);
+    if (error) toast.error("שגיאה בשמירה");
+    else toast.success("הכלים שלך נשמרו!");
+  };
+
   return (
     <DashboardLayout>
       <div className="mb-8">
@@ -97,6 +122,22 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
+        {/* Tool Stack */}
+        <Card className="bg-card/50 border-border lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Wrench className="h-5 w-5 text-primary" /> הכלים שלי
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">הוסף את כל הכלים שאתה משתמש בהם — נשתמש בהם להמלצות אוטומציה מותאמות אישית. שינוי כאן מנקה את המטמון</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <ToolStackEditor value={toolStack} onChange={setToolStack} />
+            <Button onClick={saveToolStack} disabled={savingTools} className="bg-primary text-primary-foreground">
+              {savingTools ? "שומר..." : "שמור כלים"}
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Profile */}
         <Card className="bg-card/50 border-border">
           <CardHeader>

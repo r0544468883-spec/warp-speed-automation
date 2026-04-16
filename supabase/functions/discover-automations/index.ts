@@ -1,12 +1,21 @@
 // Edge function: discover-automations
 // Uses Lovable AI to find real automation articles/workflows from the web
-// based on the user's tool stack.
+// based on the user's tool stack. Caches results for 24h per (user, stack).
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
+async function hashStack(tools: string[]): Promise<string> {
+  const normalized = tools.map((t) => t.trim().toLowerCase()).sort().join("|");
+  const buf = new TextEncoder().encode(normalized);
+  const digest = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -15,9 +24,11 @@ Deno.serve(async (req) => {
 
   try {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY missing");
 
-    const { tool_stack } = await req.json();
+    const { tool_stack, force_refresh } = await req.json();
     const tools: string[] = Array.isArray(tool_stack) ? tool_stack : [];
 
     if (tools.length === 0) {
@@ -25,6 +36,32 @@ Deno.serve(async (req) => {
         JSON.stringify({ recommendations: [], reason: "empty_stack" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Identify the calling user from the JWT
+    const authHeader = req.headers.get("Authorization") || "";
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const stackHash = await hashStack(tools);
+
+    // Try cache first (unless force_refresh)
+    if (user && !force_refresh) {
+      const { data: cached } = await supabase
+        .from("ai_recommendations_cache")
+        .select("payload, expires_at")
+        .eq("user_id", user.id)
+        .eq("stack_hash", stackHash)
+        .maybeSingle();
+
+      if (cached && new Date(cached.expires_at) > new Date()) {
+        return new Response(
+          JSON.stringify({ ...(cached.payload as any), cached: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     const toolsText = tools.join(", ");
@@ -49,20 +86,17 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: "google/gemini-2.5-flash",
           messages: [
             { role: "system", content: systemPrompt },
-            {
-              role: "user",
-              content: `הכלים שלי: ${toolsText}. תן לי 10 המלצות אוטומציה מותאמות.`,
-            },
+            { role: "user", content: `הכלים שלי: ${toolsText}` },
           ],
           tools: [
             {
               type: "function",
               function: {
                 name: "return_recommendations",
-                description: "Return automation recommendations",
+                description: "החזר רשימת המלצות אוטומציה מובנות",
                 parameters: {
                   type: "object",
                   properties: {
@@ -75,25 +109,13 @@ Deno.serve(async (req) => {
                           url: { type: "string" },
                           source: { type: "string" },
                           snippet: { type: "string" },
-                          platform: {
-                            type: "string",
-                            enum: ["n8n", "Make", "Zapier", "Other"],
-                          },
-                          tools_used: {
-                            type: "array",
-                            items: { type: "string" },
-                          },
+                          platform: { type: "string", enum: ["n8n", "Make", "Zapier", "Other"] },
+                          tools_used: { type: "array", items: { type: "string" } },
                           trigger: { type: "string" },
                           action: { type: "string" },
                           category: { type: "string" },
                         },
-                        required: [
-                          "title",
-                          "url",
-                          "snippet",
-                          "platform",
-                          "tools_used",
-                        ],
+                        required: ["title", "url", "snippet", "platform", "tools_used"],
                       },
                     },
                   },
@@ -102,64 +124,42 @@ Deno.serve(async (req) => {
               },
             },
           ],
-          tool_choice: {
-            type: "function",
-            function: { name: "return_recommendations" },
-          },
+          tool_choice: { type: "function", function: { name: "return_recommendations" } },
         }),
       }
     );
 
     if (!response.ok) {
-      const txt = await response.text();
-      console.error("AI error:", response.status, txt);
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "חרגת ממגבלת הבקשות, נסה שוב בעוד דקה" }),
-          {
-            status: 429,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "נדרש תשלום — הוסף קרדיטים ל-Lovable AI" }),
-          {
-            status: 402,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
-      throw new Error(`AI gateway: ${response.status}`);
+      const text = await response.text();
+      return new Response(
+        JSON.stringify({ error: `AI ${response.status}: ${text.slice(0, 200)}` }),
+        { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    const data = await response.json();
-    const toolCall = data?.choices?.[0]?.message?.tool_calls?.[0];
-    let recommendations: any[] = [];
-    if (toolCall?.function?.arguments) {
-      try {
-        const parsed = JSON.parse(toolCall.function.arguments);
-        recommendations = parsed.recommendations || [];
-      } catch (e) {
-        console.error("parse error:", e);
-      }
+    const json = await response.json();
+    const toolCall = json.choices?.[0]?.message?.tool_calls?.[0];
+    const args = toolCall ? JSON.parse(toolCall.function.arguments) : { recommendations: [] };
+    const payload = { recommendations: args.recommendations || [] };
+
+    // Save cache
+    if (user && payload.recommendations.length > 0) {
+      await supabase.from("ai_recommendations_cache").upsert({
+        user_id: user.id,
+        stack_hash: stackHash,
+        payload,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      }, { onConflict: "user_id,stack_hash" });
     }
 
     return new Response(
-      JSON.stringify({ recommendations, generated_at: new Date().toISOString() }),
+      JSON.stringify({ ...payload, cached: false }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (e) {
-    console.error("discover-automations error:", e);
+  } catch (e: any) {
     return new Response(
-      JSON.stringify({
-        error: e instanceof Error ? e.message : "Unknown error",
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      JSON.stringify({ error: e?.message || "unknown error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
