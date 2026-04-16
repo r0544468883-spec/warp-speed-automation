@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import DashboardLayout from "@/components/DashboardLayout";
+import SendToPlatformButton from "@/components/SendToPlatformButton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -265,11 +266,20 @@ export default function Wiki() {
                             )}
 
                             {/* Actions */}
-                            <div className="flex gap-2 pt-1">
+                            <div className="flex gap-2 pt-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                              <SendToPlatformButton
+                                automation={{
+                                  name: `${entry.tool_name}: ${entry.use_case}`,
+                                  description: entry.description,
+                                  category: entry.category,
+                                  automation_json: entry.automation_json,
+                                  source_url: entry.source_url,
+                                }}
+                              />
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                                className="text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10 h-7"
                                 onClick={(e) => { e.stopPropagation(); copyJson(entry); }}
                               >
                                 <Copy className="h-3 w-3" /> העתק JSON
@@ -278,7 +288,7 @@ export default function Wiki() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="text-xs gap-1.5"
+                                  className="text-xs gap-1.5 h-7"
                                   onClick={(e) => { e.stopPropagation(); window.open(entry.source_url!, '_blank'); }}
                                 >
                                   <ExternalLink className="h-3 w-3" /> צפה במקור
