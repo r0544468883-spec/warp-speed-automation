@@ -122,6 +122,22 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
+        {/* Tool Stack */}
+        <Card className="bg-card/50 border-border lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Wrench className="h-5 w-5 text-primary" /> הכלים שלי
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">הוסף את כל הכלים שאתה משתמש בהם — נשתמש בהם להמלצות אוטומציה מותאמות אישית. שינוי כאן מנקה את המטמון</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <ToolStackEditor value={toolStack} onChange={setToolStack} />
+            <Button onClick={saveToolStack} disabled={savingTools} className="bg-primary text-primary-foreground">
+              {savingTools ? "שומר..." : "שמור כלים"}
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Profile */}
         <Card className="bg-card/50 border-border">
           <CardHeader>
