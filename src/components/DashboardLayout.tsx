@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Home, BookOpen, Video, Calculator, Settings, Zap, Download, History, Activity,
+  Home, BookOpen, Video, Calculator, Settings, Zap, Download, History, Activity, Sprout,
   ChevronLeft, ChevronRight, LogOut, Menu, X, User
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ const navItems = [
   { path: "/smart-audit", icon: Video, label: "Smart Audit" },
   { path: "/roi", icon: Calculator, label: "ROI" },
   { path: "/live-events", icon: Activity, label: "אירועים" },
+  { path: "/help-us-grow", icon: Sprout, label: "תרום לקהילה" },
   { path: "/send-history", icon: History, label: "היסטוריה" },
   { path: "/settings", icon: Settings, label: "הגדרות" },
   { path: "/extension", icon: Download, label: "תוסף" },
