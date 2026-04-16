@@ -155,6 +155,80 @@ export type Database = {
         }
         Relationships: []
       }
+      community_contributions: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          status: string
+          tags: string[] | null
+          title: string
+          tools_related: string[] | null
+          type: Database["public"]["Enums"]["contribution_type"]
+          updated_at: string
+          upvotes: number
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          status?: string
+          tags?: string[] | null
+          title: string
+          tools_related?: string[] | null
+          type?: Database["public"]["Enums"]["contribution_type"]
+          updated_at?: string
+          upvotes?: number
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          status?: string
+          tags?: string[] | null
+          title?: string
+          tools_related?: string[] | null
+          type?: Database["public"]["Enums"]["contribution_type"]
+          updated_at?: string
+          upvotes?: number
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      contribution_votes: {
+        Row: {
+          contribution_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          contribution_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          contribution_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contribution_votes_contribution_id_fkey"
+            columns: ["contribution_id"]
+            isOneToOne: false
+            referencedRelation: "community_contributions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -336,6 +410,13 @@ export type Database = {
     Enums: {
       app_role: "admin" | "moderator" | "user"
       audit_status: "pending" | "processing" | "completed" | "failed"
+      contribution_type:
+        | "automation"
+        | "expert"
+        | "linkedin"
+        | "case_study"
+        | "forum"
+        | "other"
       subscription_tier: "free" | "pro" | "enterprise"
     }
     CompositeTypes: {
@@ -466,6 +547,14 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "moderator", "user"],
       audit_status: ["pending", "processing", "completed", "failed"],
+      contribution_type: [
+        "automation",
+        "expert",
+        "linkedin",
+        "case_study",
+        "forum",
+        "other",
+      ],
       subscription_tier: ["free", "pro", "enterprise"],
     },
   },
