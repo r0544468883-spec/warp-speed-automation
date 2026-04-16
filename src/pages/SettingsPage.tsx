@@ -37,7 +37,6 @@ export default function SettingsPage() {
   const { user } = useAuth();
 
   useEffect(() => {
-  useEffect(() => {
     if (!user) return;
     supabase
       .from("profiles")
