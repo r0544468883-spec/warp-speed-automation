@@ -1,6 +1,5 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { Settings, Bell, Plug, CreditCard, Shield, User } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Settings, Bell, Plug, CreditCard, User, Webhook } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +7,9 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import DashboardLayout from "@/components/DashboardLayout";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const connectedTools = [
   { name: "Gmail", connected: true },
@@ -23,6 +25,62 @@ const connectedTools = [
 export default function SettingsPage() {
   const [notifications, setNotifications] = useState(true);
   const [autoDetect, setAutoDetect] = useState(true);
+  const [n8nUrl, setN8nUrl] = useState("");
+  const [makeUrl, setMakeUrl] = useState("");
+  const [zapierUrl, setZapierUrl] = useState("");
+  const [saving, setSaving] = useState(false);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("webhook_settings")
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setN8nUrl(data.n8n_webhook_url || "");
+          setMakeUrl(data.make_webhook_url || "");
+          setZapierUrl(data.zapier_webhook_url || "");
+        }
+      });
+  }, [user]);
+
+  const saveWebhooks = async () => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      const { data: existing } = await supabase
+        .from("webhook_settings")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from("webhook_settings")
+          .update({
+            n8n_webhook_url: n8nUrl || null,
+            make_webhook_url: makeUrl || null,
+            zapier_webhook_url: zapierUrl || null,
+          })
+          .eq("user_id", user.id);
+      } else {
+        await supabase.from("webhook_settings").insert({
+          user_id: user.id,
+          n8n_webhook_url: n8nUrl || null,
+          make_webhook_url: makeUrl || null,
+          zapier_webhook_url: zapierUrl || null,
+        });
+      }
+      toast.success("כתובות Webhook נשמרו בהצלחה!");
+    } catch {
+      toast.error("שגיאה בשמירת ההגדרות");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -85,6 +143,62 @@ export default function SettingsPage() {
               </div>
               <Switch />
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Webhook Settings */}
+        <Card className="bg-card/50 border-border lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Webhook className="h-5 w-5 text-primary" /> כתובות Webhook
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">הגדר כתובות Webhook כדי לשלוח אוטומציות ישירות לפלטפורמות שלך</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid sm:grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label className="text-sm flex items-center gap-2">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-orange-400" />
+                  n8n Webhook URL
+                </Label>
+                <Input
+                  value={n8nUrl}
+                  onChange={(e) => setN8nUrl(e.target.value)}
+                  placeholder="https://your-n8n.app/webhook/..."
+                  className="bg-muted/50 border-border mt-1 text-xs"
+                  dir="ltr"
+                />
+              </div>
+              <div>
+                <Label className="text-sm flex items-center gap-2">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-purple-400" />
+                  Make Webhook URL
+                </Label>
+                <Input
+                  value={makeUrl}
+                  onChange={(e) => setMakeUrl(e.target.value)}
+                  placeholder="https://hook.make.com/..."
+                  className="bg-muted/50 border-border mt-1 text-xs"
+                  dir="ltr"
+                />
+              </div>
+              <div>
+                <Label className="text-sm flex items-center gap-2">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-400" />
+                  Zapier Webhook URL
+                </Label>
+                <Input
+                  value={zapierUrl}
+                  onChange={(e) => setZapierUrl(e.target.value)}
+                  placeholder="https://hooks.zapier.com/hooks/catch/..."
+                  className="bg-muted/50 border-border mt-1 text-xs"
+                  dir="ltr"
+                />
+              </div>
+            </div>
+            <Button onClick={saveWebhooks} disabled={saving} className="bg-primary text-primary-foreground">
+              {saving ? "שומר..." : "שמור כתובות Webhook"}
+            </Button>
           </CardContent>
         </Card>
 

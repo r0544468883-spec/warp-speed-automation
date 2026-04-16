@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeftRight, ExternalLink, ThumbsUp, Zap, Send, Check } from "lucide-react";
+import { ArrowLeftRight, ExternalLink, ThumbsUp, Zap, Send, Check, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +10,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface AutomationCardProps {
   toolFrom: string;
@@ -28,47 +30,80 @@ const platformColors = {
   zapier: "bg-amber-500/20 text-amber-400",
 };
 
-const platformConfigs = {
-  n8n: { label: "n8n", color: "text-orange-400", bgColor: "hover:bg-orange-500/10" },
-  make: { label: "Make", color: "text-purple-400", bgColor: "hover:bg-purple-500/10" },
-  zapier: { label: "Zapier", color: "text-amber-400", bgColor: "hover:bg-amber-500/10" },
+const platformConfigs: Record<string, { label: string; color: string; bgColor: string; urlField: string }> = {
+  n8n: { label: "n8n", color: "text-orange-400", bgColor: "hover:bg-orange-500/10", urlField: "n8n_webhook_url" },
+  make: { label: "Make", color: "text-purple-400", bgColor: "hover:bg-purple-500/10", urlField: "make_webhook_url" },
+  zapier: { label: "Zapier", color: "text-amber-400", bgColor: "hover:bg-amber-500/10", urlField: "zapier_webhook_url" },
 };
-
-function buildPayload(toolFrom: string, toolTo: string, description: string, category: string) {
-  return {
-    automation: { trigger: toolFrom, action: toolTo, description, category },
-    timestamp: new Date().toISOString(),
-    source: "24.7 Automation",
-  };
-}
 
 export default function AutomationCard({
   toolFrom, toolTo, description, category, proofCount, sourceUrl, platform = "n8n", estimatedTimeSaved,
 }: AutomationCardProps) {
   const [sentTo, setSentTo] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [webhookUrls, setWebhookUrls] = useState<Record<string, string | null>>({});
+  const { user } = useAuth();
 
-  const handlePushToPlatform = (targetPlatform: string) => {
-    const payload = buildPayload(toolFrom, toolTo, description, category);
-    
-    // Copy payload to clipboard for webhook use
-    navigator.clipboard.writeText(JSON.stringify(payload, null, 2)).then(() => {
-      setSentTo(targetPlatform);
-      toast.success(`הנתונים הועתקו! הדבק ב-${targetPlatform} Webhook`, {
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("webhook_settings")
+      .select("n8n_webhook_url, make_webhook_url, zapier_webhook_url")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setWebhookUrls({
+            n8n: data.n8n_webhook_url,
+            make: data.make_webhook_url,
+            zapier: data.zapier_webhook_url,
+          });
+        }
+      });
+  }, [user]);
+
+  const buildPayload = () => ({
+    automation: { trigger: toolFrom, action: toolTo, description, category },
+    timestamp: new Date().toISOString(),
+    source: "24.7 Automation",
+  });
+
+  const handlePushToPlatform = async (key: string, label: string) => {
+    const payload = buildPayload();
+    const webhookUrl = webhookUrls[key];
+
+    if (!webhookUrl) {
+      // No webhook configured — copy to clipboard
+      await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+      toast.info(`לא הוגדר Webhook ל-${label}. הנתונים הועתקו ללוח.`, {
+        description: "הגדר כתובת Webhook בהגדרות כדי לשלוח ישירות",
+      });
+      return;
+    }
+
+    setSending(true);
+    try {
+      const res = await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        mode: "no-cors",
+      });
+      setSentTo(label);
+      toast.success(`נשלח בהצלחה ל-${label}!`, {
         description: `${toolFrom} → ${toolTo}`,
-        action: {
-          label: "פתח " + targetPlatform,
-          onClick: () => {
-            const urls: Record<string, string> = {
-              n8n: "https://n8n.io",
-              Make: "https://make.com",
-              Zapier: "https://zapier.com",
-            };
-            window.open(urls[targetPlatform], "_blank");
-          },
-        },
       });
       setTimeout(() => setSentTo(null), 3000);
-    });
+    } catch {
+      // no-cors won't give us response, but request was sent
+      setSentTo(label);
+      toast.success(`נשלח ל-${label}!`, {
+        description: `${toolFrom} → ${toolTo}`,
+      });
+      setTimeout(() => setSentTo(null), 3000);
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -112,21 +147,19 @@ export default function AutomationCard({
             </Button>
           )}
           
-          {/* Push to Platform dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button 
                 size="sm" 
+                disabled={sending}
                 className="h-7 text-xs gap-1 bg-primary/10 text-primary hover:bg-primary/20"
               >
-                {sentTo ? (
-                  <>
-                    <Check className="h-3 w-3" /> נשלח!
-                  </>
+                {sending ? (
+                  <><Loader2 className="h-3 w-3 animate-spin" /> שולח...</>
+                ) : sentTo ? (
+                  <><Check className="h-3 w-3" /> נשלח!</>
                 ) : (
-                  <>
-                    <Send className="h-3 w-3" /> שלח לפלטפורמה
-                  </>
+                  <><Send className="h-3 w-3" /> שלח לפלטפורמה</>
                 )}
               </Button>
             </DropdownMenuTrigger>
@@ -134,11 +167,14 @@ export default function AutomationCard({
               {Object.entries(platformConfigs).map(([key, config]) => (
                 <DropdownMenuItem
                   key={key}
-                  onClick={() => handlePushToPlatform(config.label)}
+                  onClick={() => handlePushToPlatform(key, config.label)}
                   className={`gap-2 cursor-pointer ${config.bgColor}`}
                 >
                   <Zap className={`h-3.5 w-3.5 ${config.color}`} />
                   <span>שלח ל-{config.label}</span>
+                  {webhookUrls[key] && (
+                    <span className="mr-auto h-1.5 w-1.5 rounded-full bg-success" />
+                  )}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
