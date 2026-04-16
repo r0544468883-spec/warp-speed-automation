@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      automation_send_log: {
+        Row: {
+          automation_name: string
+          created_at: string
+          error_message: string | null
+          id: string
+          payload: Json | null
+          platform: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          automation_name: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          payload?: Json | null
+          platform: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          automation_name?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          payload?: Json | null
+          platform?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       automation_wiki: {
         Row: {
           automation_json: Json | null
@@ -218,6 +251,7 @@ export type Database = {
       webhook_settings: {
         Row: {
           created_at: string
+          default_platform: string | null
           id: string
           make_webhook_url: string | null
           n8n_webhook_url: string | null
@@ -227,6 +261,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          default_platform?: string | null
           id?: string
           make_webhook_url?: string | null
           n8n_webhook_url?: string | null
@@ -236,6 +271,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          default_platform?: string | null
           id?: string
           make_webhook_url?: string | null
           n8n_webhook_url?: string | null

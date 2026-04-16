@@ -42,13 +42,14 @@ export default function AutomationCard({
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [webhookUrls, setWebhookUrls] = useState<Record<string, string | null>>({});
+  const [defaultPlatform, setDefaultPlatform] = useState<string | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
     if (!user) return;
     supabase
       .from("webhook_settings")
-      .select("n8n_webhook_url, make_webhook_url, zapier_webhook_url")
+      .select("n8n_webhook_url, make_webhook_url, zapier_webhook_url, default_platform")
       .eq("user_id", user.id)
       .maybeSingle()
       .then(({ data }) => {
@@ -58,6 +59,7 @@ export default function AutomationCard({
             make: data.make_webhook_url,
             zapier: data.zapier_webhook_url,
           });
+          setDefaultPlatform(data.default_platform);
         }
       });
   }, [user]);
@@ -68,13 +70,25 @@ export default function AutomationCard({
     source: "24.7 Automation",
   });
 
+  const logSend = async (platformKey: string, label: string, status: string, errorMsg?: string) => {
+    if (!user) return;
+    await supabase.from("automation_send_log").insert({
+      user_id: user.id,
+      platform: label,
+      automation_name: `${toolFrom} → ${toolTo}`,
+      payload: buildPayload() as any,
+      status,
+      error_message: errorMsg || null,
+    });
+  };
+
   const handlePushToPlatform = async (key: string, label: string) => {
     const payload = buildPayload();
     const webhookUrl = webhookUrls[key];
 
     if (!webhookUrl) {
-      // No webhook configured — copy to clipboard
       await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+      await logSend(key, label, "copied");
       toast.info(`לא הוגדר Webhook ל-${label}. הנתונים הועתקו ללוח.`, {
         description: "הגדר כתובת Webhook בהגדרות כדי לשלוח ישירות",
       });
@@ -83,26 +97,29 @@ export default function AutomationCard({
 
     setSending(true);
     try {
-      const res = await fetch(webhookUrl, {
+      await fetch(webhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
         mode: "no-cors",
       });
       setSentTo(label);
-      toast.success(`נשלח בהצלחה ל-${label}!`, {
-        description: `${toolFrom} → ${toolTo}`,
-      });
+      await logSend(key, label, "sent");
+      toast.success(`נשלח בהצלחה ל-${label}!`, { description: `${toolFrom} → ${toolTo}` });
       setTimeout(() => setSentTo(null), 3000);
-    } catch {
-      // no-cors won't give us response, but request was sent
+    } catch (err: any) {
       setSentTo(label);
-      toast.success(`נשלח ל-${label}!`, {
-        description: `${toolFrom} → ${toolTo}`,
-      });
+      await logSend(key, label, "sent");
+      toast.success(`נשלח ל-${label}!`, { description: `${toolFrom} → ${toolTo}` });
       setTimeout(() => setSentTo(null), 3000);
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleQuickSend = () => {
+    if (defaultPlatform && platformConfigs[defaultPlatform]) {
+      handlePushToPlatform(defaultPlatform, platformConfigs[defaultPlatform].label);
     }
   };
 
@@ -146,39 +163,57 @@ export default function AutomationCard({
               </a>
             </Button>
           )}
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                size="sm" 
-                disabled={sending}
-                className="h-7 text-xs gap-1 bg-primary/10 text-primary hover:bg-primary/20"
-              >
-                {sending ? (
-                  <><Loader2 className="h-3 w-3 animate-spin" /> שולח...</>
-                ) : sentTo ? (
-                  <><Check className="h-3 w-3" /> נשלח!</>
-                ) : (
-                  <><Send className="h-3 w-3" /> שלח לפלטפורמה</>
-                )}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[160px]">
-              {Object.entries(platformConfigs).map(([key, config]) => (
-                <DropdownMenuItem
-                  key={key}
-                  onClick={() => handlePushToPlatform(key, config.label)}
-                  className={`gap-2 cursor-pointer ${config.bgColor}`}
+
+          {/* Quick send if default platform is set */}
+          {defaultPlatform && webhookUrls[defaultPlatform] ? (
+            <Button
+              size="sm"
+              disabled={sending}
+              onClick={handleQuickSend}
+              className="h-7 text-xs gap-1 bg-primary/10 text-primary hover:bg-primary/20"
+            >
+              {sending ? (
+                <><Loader2 className="h-3 w-3 animate-spin" /> שולח...</>
+              ) : sentTo ? (
+                <><Check className="h-3 w-3" /> נשלח!</>
+              ) : (
+                <><Send className="h-3 w-3" /> שלח ל-{platformConfigs[defaultPlatform].label}</>
+              )}
+            </Button>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  disabled={sending}
+                  className="h-7 text-xs gap-1 bg-primary/10 text-primary hover:bg-primary/20"
                 >
-                  <Zap className={`h-3.5 w-3.5 ${config.color}`} />
-                  <span>שלח ל-{config.label}</span>
-                  {webhookUrls[key] && (
-                    <span className="mr-auto h-1.5 w-1.5 rounded-full bg-success" />
+                  {sending ? (
+                    <><Loader2 className="h-3 w-3 animate-spin" /> שולח...</>
+                  ) : sentTo ? (
+                    <><Check className="h-3 w-3" /> נשלח!</>
+                  ) : (
+                    <><Send className="h-3 w-3" /> שלח לפלטפורמה</>
                   )}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[160px]">
+                {Object.entries(platformConfigs).map(([key, config]) => (
+                  <DropdownMenuItem
+                    key={key}
+                    onClick={() => handlePushToPlatform(key, config.label)}
+                    className={`gap-2 cursor-pointer ${config.bgColor}`}
+                  >
+                    <Zap className={`h-3.5 w-3.5 ${config.color}`} />
+                    <span>שלח ל-{config.label}</span>
+                    {webhookUrls[key] && (
+                      <span className="mr-auto h-1.5 w-1.5 rounded-full bg-success" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
     </motion.div>

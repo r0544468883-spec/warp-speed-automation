@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Settings, Bell, Plug, CreditCard, User, Webhook } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +29,7 @@ export default function SettingsPage() {
   const [n8nUrl, setN8nUrl] = useState("");
   const [makeUrl, setMakeUrl] = useState("");
   const [zapierUrl, setZapierUrl] = useState("");
+  const [defaultPlatform, setDefaultPlatform] = useState<string>("none");
   const [saving, setSaving] = useState(false);
   const { user } = useAuth();
 
@@ -43,6 +45,7 @@ export default function SettingsPage() {
           setN8nUrl(data.n8n_webhook_url || "");
           setMakeUrl(data.make_webhook_url || "");
           setZapierUrl(data.zapier_webhook_url || "");
+          setDefaultPlatform(data.default_platform || "none");
         }
       });
   }, [user]);
@@ -64,6 +67,7 @@ export default function SettingsPage() {
             n8n_webhook_url: n8nUrl || null,
             make_webhook_url: makeUrl || null,
             zapier_webhook_url: zapierUrl || null,
+            default_platform: defaultPlatform === "none" ? null : defaultPlatform,
           })
           .eq("user_id", user.id);
       } else {
@@ -72,6 +76,7 @@ export default function SettingsPage() {
           n8n_webhook_url: n8nUrl || null,
           make_webhook_url: makeUrl || null,
           zapier_webhook_url: zapierUrl || null,
+          default_platform: defaultPlatform === "none" ? null : defaultPlatform,
         });
       }
       toast.success("כתובות Webhook נשמרו בהצלחה!");
@@ -196,8 +201,22 @@ export default function SettingsPage() {
                 />
               </div>
             </div>
+            <div>
+              <Label className="text-sm mb-1 block">פלטפורמה מועדפת (שליחה מהירה)</Label>
+              <Select value={defaultPlatform} onValueChange={setDefaultPlatform}>
+                <SelectTrigger className="bg-muted/50 border-border w-48">
+                  <SelectValue placeholder="בחר פלטפורמה" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">ללא — הצג תפריט</SelectItem>
+                  <SelectItem value="n8n">n8n</SelectItem>
+                  <SelectItem value="make">Make</SelectItem>
+                  <SelectItem value="zapier">Zapier</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Button onClick={saveWebhooks} disabled={saving} className="bg-primary text-primary-foreground">
-              {saving ? "שומר..." : "שמור כתובות Webhook"}
+              {saving ? "שומר..." : "שמור הגדרות Webhook"}
             </Button>
           </CardContent>
         </Card>
