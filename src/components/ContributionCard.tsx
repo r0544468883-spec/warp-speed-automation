@@ -3,6 +3,7 @@ import { Heart, ExternalLink, Trash2, Workflow, User as UserIcon, Briefcase, Fil
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const TYPE_META: Record<string, { icon: any; label: string; color: string }> = {
   automation: { icon: Workflow, label: "אוטומציה", color: "text-primary" },
@@ -112,9 +113,12 @@ export default function ContributionCard({ contribution, isOwner, hasVoted, onVo
         {/* Author */}
         <div className="flex items-center justify-between text-[11px] text-muted-foreground border-t border-border pt-2">
           <div className="flex items-center gap-1.5">
-            <div className="h-5 w-5 rounded-full bg-primary/20 flex items-center justify-center">
-              <UserIcon className="h-3 w-3 text-primary" />
-            </div>
+            <Avatar className="h-5 w-5 border border-primary/30">
+              <AvatarImage src={profile?.avatar_url || undefined} />
+              <AvatarFallback className="bg-primary/20 text-primary text-[9px]">
+                {author.slice(0, 1).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
             <span>{author}</span>
           </div>
           <div className="flex items-center gap-1.5 text-muted-foreground">
